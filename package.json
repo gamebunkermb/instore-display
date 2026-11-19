@@ -11,7 +11,8 @@
     "test": "vitest run",
     "build": "node cli/build.mjs",
     "sync": "node cli/sync.mjs",
-    "league": "node cli/league.mjs"
+    "league": "node cli/league.mjs",
+    "events": "node cli/events.mjs"
   },
   "dependencies": {
     "sharp": "^0.35.5",

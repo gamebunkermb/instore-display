@@ -14,6 +14,31 @@ You can also run it any time from Actions → *Weekly in-store display* → Run 
 
 First time? See [docs/setup.md](docs/setup.md).
 
+## Managing events
+
+The screen shows the Discord server's events, so events are managed on Discord. You can do
+that by hand in Discord, or with these commands. Every change is a dry run first; add
+`--execute --confirm <n>` (the number it printed) to apply.
+
+```powershell
+npm run events -- list
+npm run events -- create --name "Warhammer 40,000 RTT" --date 2026-12-05 --time 10:00 --points 2000 --minutes 480
+npm run events -- edit --id <id from list> --points 1500
+npm run events -- edit --id <id> --date 2026-12-12 --time 11:00
+npm run events -- cancel --id <id>
+npm run events -- cancel --match "Escalation League"
+```
+
+- `create` options: `--points`, `--minutes` (default 240), `--location` (default "In store"),
+  `--notes`. Points go in both the title, "(2,000 pts)", and the description, "Points: 2000".
+- `edit` changes only what you give: `--name`, `--date`, `--time`, `--minutes`, `--points`
+  (`--points 0` removes them), `--location` or `--notes`. Moving the date keeps the time and
+  length, and changing points updates the title and the description together.
+- `cancel` marks the event cancelled on Discord, and people who clicked "Interested" are
+  told. It is not deleted. `--match` cancels every scheduled event whose name contains the
+  text, e.g. a whole league.
+- Changes show on the screen at the next run (Monday, or run the workflow by hand).
+
 ## Adding a league
 
 Events come from Discord, so a new league is a set of Discord events. Make them all at once:
@@ -34,7 +59,8 @@ in the title or description: `Points: 2000` or `2000 pts`.
 
 - Memes need a ✅ from an approver (config `approver_role_ids` / `approver_user_ids`); a
   customer's ✅ does nothing.
-- Creating Discord events is a dry run until a person adds `--execute --confirm <n>`.
+- Creating, editing or cancelling Discord events is a dry run until a person adds
+  `--execute --confirm <n>`.
 - On Yodeck it touches only its own playlist and media tagged `instore-display-auto`. It
   never changes which playlist a screen shows.
 
@@ -43,8 +69,8 @@ in the title or description: `Points: 2000` or `2000 pts`.
 | Path | What |
 |---|---|
 | `config/display.yaml` | Ids, timings, colours. No secrets |
-| `lib/` | `discord`, `yodeck` (API clients), `memes` (approval), `events` (points), `league`, `slide`, `sync` (plan), `time` |
-| `cli/` | `build` (Discord → `out/`), `sync` (`out/` → Yodeck), `league` |
+| `lib/` | `discord`, `yodeck` (API clients), `memes` (approval), `events` (points, slide list), `manage` (create/edit/cancel bodies), `league`, `slide`, `sync` (plan), `time` |
+| `cli/` | `build` (Discord → `out/`), `sync` (`out/` → Yodeck), `events` (list/create/edit/cancel), `league` |
 | `.github/workflows/weekly-display.yml` | The Monday run |
 
 Node ≥ 22, ESM, vitest (`npm test`). Secrets: `.env` locally, repository secrets in GitHub.
