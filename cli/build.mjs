@@ -11,7 +11,7 @@
 // Then open out/site/index.html through a local server to watch it, e.g.
 //   npx http-server out/site    (the page reads slides.json, which file:// blocks)
 
-import { mkdirSync, writeFileSync, rmSync, cpSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, rmSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { ROOT, loadConfig, loadEnv, need, secret } from '../lib/config.mjs';
@@ -130,7 +130,11 @@ items.unshift({ name: contentName('events', png), kind: 'events', type: 'image',
 const builtAt = new Date().toISOString();
 const slides = slidesFor(items, screen.events_every, eventsForPage(events));
 cpSync(join(ROOT, 'web'), site, { recursive: true });          // index.html, brand/, fonts/
-writeFileSync(join(site, 'slides.json'), JSON.stringify({ builtAt, storeName: config.store.name, website: config.store.website ?? '', timeZone: tz, slides }, null, 2));
+// Stamp the page with a version, so screens still running an older page reload into the new one.
+const pageHtml = readFileSync(join(ROOT, 'web', 'index.html'), 'utf8');
+const pageVersion = contentName('page', Buffer.from(pageHtml)).slice(5);
+writeFileSync(join(site, 'index.html'), pageHtml.replace('__PAGE_VERSION__', pageVersion));
+writeFileSync(join(site, 'slides.json'), JSON.stringify({ builtAt, pageVersion, storeName: config.store.name, website: config.store.website ?? '', timeZone: tz, slides }, null, 2));
 // For `sync` (Yodeck API, Premium plans only). Paths are relative to out/site.
 writeFileSync(join(ROOT, 'out', 'manifest.json'), JSON.stringify({
   builtAt,

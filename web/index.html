@@ -100,6 +100,7 @@
 // The screen's slideshow. slides.json is rebuilt by the weekly GitHub Action; this page
 // re-reads it at the end of every loop, so new content appears without touching Yodeck.
 (() => {
+  const PAGE_VERSION = '__PAGE_VERSION__';      // filled in by the build; slides.json carries the newest
   const RELOAD_EVERY_MS = 6 * 60 * 60 * 1000;   // a full reload now and then keeps the player's memory fresh
   const VIDEO_CAP_S = 90;                        // never sit on one video longer than this
   const started = Date.now();
@@ -119,7 +120,15 @@
   async function load() {
     try {
       const r = await fetch('slides.json?t=' + Date.now(), { cache: 'no-store' });
-      if (r.ok) { const d = await r.json(); if (Array.isArray(d.slides) && d.slides.length) data = d; }
+      if (r.ok) {
+        const d = await r.json();
+        // A newer page was published (e.g. a design change): load it, past any cache.
+        if (d.pageVersion && d.pageVersion !== PAGE_VERSION && PAGE_VERSION !== '__PAGE_VERSION__') {
+          location.replace(location.pathname + '?v=' + encodeURIComponent(d.pageVersion));
+          return;
+        }
+        if (Array.isArray(d.slides) && d.slides.length) data = d;
+      }
     } catch (e) { /* keep showing what we had */ }
   }
 
