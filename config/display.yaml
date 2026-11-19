@@ -7,6 +7,7 @@
 
 store:
   name: Game Bunker              # keep in step with store-ops config/store.yaml -> brand.name
+  website: gamebunker.net        # shown on the events slide
   timezone: America/New_York     # every date on the screen and every league time is in this zone
 
 discord:

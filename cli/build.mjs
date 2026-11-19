@@ -11,16 +11,16 @@
 // Then open out/site/index.html through a local server to watch it, e.g.
 //   npx http-server out/site    (the page reads slides.json, which file:// blocks)
 
-import { mkdirSync, writeFileSync, rmSync, copyFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, rmSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { ROOT, loadConfig, loadEnv, need, secret } from '../lib/config.mjs';
 import { discordClient } from '../lib/discord.mjs';
 import { selectMemes, approverCheck, roleIdsByName } from '../lib/memes.mjs';
 import { upcomingEvents } from '../lib/events.mjs';
-import { eventsSvg, svgToPng, fitMeme } from '../lib/slide.mjs';
+import { eventsSvg, svgToPng, memeForPage } from '../lib/slide.mjs';
 import { contentName } from '../lib/sync.mjs';
-import { slidesFor } from '../lib/site.mjs';
+import { slidesFor, eventsForPage } from '../lib/site.mjs';
 import { hasFfmpeg, transcode, passThroughExt } from '../lib/video.mjs';
 import { addDays, localDate, zonedToUtc } from '../lib/time.mjs';
 
@@ -38,16 +38,21 @@ let events;
 
 if (args.has('--sample')) {
   const today = localDate(new Date(), tz);
+  const ev = (name, day, time, points) => {
+    const start = zonedToUtc(addDays(today, day), time, tz);
+    return { name, start, end: new Date(start.getTime() + 4 * 3600e3), points };
+  };
   events = [
-    { name: 'Escalation League – Week 2', start: zonedToUtc(addDays(today, 1), '18:00', tz), points: 1000 },
-    { name: 'Warhammer 40,000 RTT', start: zonedToUtc(addDays(today, 3), '10:00', tz), points: 2000 },
-    { name: 'Paint Night', start: zonedToUtc(addDays(today, 5), '18:30', tz), points: null },
-    { name: 'Escalation League – Week 3', start: zonedToUtc(addDays(today, 8), '18:00', tz), points: 1250 },
+    ev('Infinity Thursday', 0, '23:00', null),
+    ev('Escalation League – Week 2', 1, '18:00', 1000),
+    ev('Warhammer 40,000 RTT', 3, '10:00', 2000),
+    ev('Paint Night', 5, '18:30', null),
+    ev('Escalation League – Week 3', 8, '18:00', 1250),
   ];
-  for (const [n, color] of [[1, '#2b6cb0'], [2, '#9b2c2c']]) {   // two stand-in memes
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900"><rect width="900" height="900" fill="${color}"/><text x="450" y="470" font-size="90" text-anchor="middle" fill="#fff" font-family="sans-serif">Sample meme ${n}</text></svg>`;
-    const file = `memes/meme-sample-${n}.png`;
-    writeFileSync(join(site, file), await fitMeme(Buffer.from(svg), config.slide));
+  for (const [n, color, w, h] of [[1, '#2b6cb0', 900, 900], [2, '#9b2c2c', 1280, 720]]) {   // two stand-in memes
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="${color}"/><text x="${w / 2}" y="${h / 2 + 30}" font-size="90" text-anchor="middle" fill="#fff" font-family="sans-serif">Sample meme ${n}</text></svg>`;
+    const file = `memes/meme-sample-${n}.jpg`;
+    writeFileSync(join(site, file), await memeForPage(Buffer.from(svg)));
     items.push({ name: `meme-sample-${n}`, kind: 'meme', type: 'image', file, seconds: screen.meme_seconds });
   }
 } else {
@@ -106,8 +111,8 @@ if (args.has('--sample')) {
           }
           items.push({ name, kind: 'meme', type: 'video', file, seconds: screen.video_max_seconds, postedAt: meme.postedAt });
         } else {
-          const file = `memes/${name}.png`;
-          writeFileSync(join(site, file), await fitMeme(bytes, config.slide));
+          const file = `memes/${name}.jpg`;
+          writeFileSync(join(site, file), await memeForPage(bytes));
           items.push({ name, kind: 'meme', type: 'image', file, seconds: screen.meme_seconds, postedAt: meme.postedAt });
         }
       } catch (e) {
@@ -123,9 +128,9 @@ writeFileSync(join(site, 'events.png'), png);
 items.unshift({ name: contentName('events', png), kind: 'events', type: 'image', file: 'events.png', seconds: screen.events_seconds });
 
 const builtAt = new Date().toISOString();
-const slides = slidesFor(items, screen.events_every);
-copyFileSync(join(ROOT, 'web', 'index.html'), join(site, 'index.html'));
-writeFileSync(join(site, 'slides.json'), JSON.stringify({ builtAt, slides }, null, 2));
+const slides = slidesFor(items, screen.events_every, eventsForPage(events));
+cpSync(join(ROOT, 'web'), site, { recursive: true });          // index.html, brand/, fonts/
+writeFileSync(join(site, 'slides.json'), JSON.stringify({ builtAt, storeName: config.store.name, website: config.store.website ?? '', timeZone: tz, slides }, null, 2));
 // For `sync` (Yodeck API, Premium plans only). Paths are relative to out/site.
 writeFileSync(join(ROOT, 'out', 'manifest.json'), JSON.stringify({
   builtAt,

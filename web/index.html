@@ -6,86 +6,207 @@
 <meta name="robots" content="noindex, nofollow">
 <title>In-store display</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #111418; overflow: hidden; cursor: none; }
-  .slide { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
-           background: #111418; opacity: 0; transition: opacity .6s ease; }
+  /* Brand: black, gold, red; Poppins (as gamebunker.net). Fonts are served with the page. */
+  @font-face { font-family: Poppins; font-weight: 500; src: url(fonts/Poppins-Medium.ttf); }
+  @font-face { font-family: Poppins; font-weight: 600; src: url(fonts/Poppins-SemiBold.ttf); }
+  @font-face { font-family: Poppins; font-weight: 700; src: url(fonts/Poppins-Bold.ttf); }
+  @font-face { font-family: Poppins; font-weight: 800; src: url(fonts/Poppins-ExtraBold.ttf); }
+
+  :root {
+    --black: #0b0b0b; --panel: #161616; --line: #2a2a2a;
+    --gold: #ffd700; --gold-soft: #fce477; --red: #b90000; --red-hot: #e01010;
+    --white: #f5f5f5; --grey: #9a9a9a;
+    --hazard: repeating-linear-gradient(-45deg, var(--gold) 0 26px, var(--black) 26px 52px);
+  }
+  html, body { margin: 0; height: 100%; background: var(--black); overflow: hidden; cursor: none; }
+  body { font-family: Poppins, 'Segoe UI', Arial, sans-serif; color: var(--white); }
+
+  /* Everything is laid out on a 1920x1080 stage, scaled to fit the screen. */
+  #stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px;
+           transform-origin: 0 0; overflow: hidden;
+           background: radial-gradient(ellipse at 50% 35%, #1c1c1c 0%, var(--black) 70%); }
+  .hazard { position: absolute; left: 0; right: 0; height: 22px; background: var(--hazard); z-index: 5; }
+  .hazard.top { top: 0; } .hazard.bottom { bottom: 0; }
+
+  .slide { position: absolute; inset: 22px 0; opacity: 0; transition: opacity .7s ease; }
   .slide.on { opacity: 1; }
-  #empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-           color: #9aa3ad; font: 4vw system-ui, sans-serif; }
+
+  /* ---------- Events ---------- */
+  .ev-head { position: absolute; left: 90px; right: 90px; top: 46px; height: 190px;
+             display: flex; align-items: center; justify-content: space-between; }
+  .ev-head img { height: 170px; }
+  .ev-title { text-align: right; }
+  .ev-kicker { display: inline-block; background: var(--red); color: #fff; font-weight: 700;
+               font-size: 30px; letter-spacing: 6px; padding: 6px 20px 4px; text-transform: uppercase; }
+  .ev-big { font-weight: 800; font-size: 92px; line-height: 1; margin-top: 14px; letter-spacing: 1px;
+            text-transform: uppercase; color: var(--gold); text-shadow: 0 4px 0 #000; }
+  .ev-list { position: absolute; left: 90px; right: 90px; top: 268px; bottom: 96px;
+             display: flex; flex-direction: column; gap: 18px; }
+  .ev { display: flex; align-items: stretch; background: var(--panel); border: 2px solid var(--line);
+        border-left: 10px solid var(--gold); min-height: 0; flex: 1 1 0; max-height: 150px;
+        opacity: 0; transform: translateX(-40px); }
+  .slide.on .ev { animation: in .6s cubic-bezier(.2,.8,.2,1) forwards; }
+  @keyframes in { to { opacity: 1; transform: none; } }
+  .ev.next { border-color: var(--gold); border-left-color: var(--red); background: #1d1a10; }
+  .ev-date { width: 190px; flex: none; background: var(--gold); color: var(--black);
+             display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+  .ev.next .ev-date { background: var(--red); color: #fff; }
+  .ev-dow { font-weight: 700; font-size: 26px; letter-spacing: 3px; text-transform: uppercase; }
+  .ev-day { font-weight: 800; font-size: 64px; margin: 2px 0; }
+  .ev-mon { font-weight: 700; font-size: 24px; letter-spacing: 4px; text-transform: uppercase; }
+  .ev-body { flex: 1; padding: 0 36px; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+  .ev-name { font-weight: 700; font-size: 52px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev-time { font-weight: 500; font-size: 30px; color: var(--grey); margin-top: 4px; }
+  .ev-time b { color: var(--gold-soft); font-weight: 600; }
+  .ev-tag { font-weight: 700; font-size: 22px; letter-spacing: 3px; color: var(--red-hot); text-transform: uppercase; margin-right: 14px; }
+  .ev-pts { flex: none; align-self: center; margin-right: 36px; text-align: center; line-height: 1;
+            border: 4px solid var(--gold); padding: 14px 26px 12px; transform: skewX(-8deg); }
+  .ev-pts span { display: block; transform: skewX(8deg); }
+  .ev-pts .n { font-weight: 800; font-size: 54px; color: var(--gold); }
+  .ev-pts .u { font-weight: 700; font-size: 20px; letter-spacing: 6px; color: var(--white); margin-top: 4px; }
+  .ev-empty { position: absolute; inset: 300px 90px 120px; display: flex; flex-direction: column;
+              align-items: center; justify-content: center; text-align: center; }
+  .ev-empty .a { font-weight: 800; font-size: 96px; color: var(--gold); text-transform: uppercase; }
+  .ev-empty .b { font-weight: 600; font-size: 40px; color: var(--grey); margin-top: 12px; }
+  .ev-foot { position: absolute; left: 90px; right: 90px; bottom: 26px; display: flex;
+             justify-content: space-between; align-items: center; font-size: 30px; font-weight: 600; color: var(--grey); }
+  .ev-foot b { color: var(--white); }
+
+  /* ---------- Memes ---------- */
+  .meme-frame { position: absolute; left: 150px; right: 150px; top: 70px; bottom: 120px;
+                display: flex; align-items: center; justify-content: center; }
+  .meme-frame img, .meme-frame video { max-width: 100%; max-height: 100%; display: block;
+                                       outline: 4px solid var(--gold); outline-offset: 10px; background: #000; }
+  .meme-tag { position: absolute; left: 60px; top: 28px; z-index: 2; background: var(--red); color: #fff;
+              font-weight: 800; font-size: 30px; letter-spacing: 5px; padding: 8px 22px 6px; transform: rotate(-3deg);
+              box-shadow: 0 6px 0 #000; text-transform: uppercase; }
+  .meme-foot { position: absolute; left: 60px; right: 60px; bottom: 22px; height: 80px;
+               display: flex; align-items: center; justify-content: space-between; }
+  .meme-foot img { height: 78px; }
+  .meme-foot div { font-size: 28px; font-weight: 600; color: var(--grey); }
+  .meme-foot b { color: var(--gold); }
+
+  #loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #loading img { width: 900px; opacity: .9; }
 </style>
 </head>
 <body>
-<div id="empty">Loading…</div>
+<div id="stage">
+  <div class="hazard top"></div>
+  <div id="loading"><img src="brand/logo-light.png" alt=""></div>
+  <div class="hazard bottom"></div>
+</div>
 <script>
 // The screen's slideshow. slides.json is rebuilt by the weekly GitHub Action; this page
 // re-reads it at the end of every loop, so new content appears without touching Yodeck.
 (() => {
-  const RELOAD_EVERY_MS = 6 * 60 * 60 * 1000;   // full page reload now and then keeps the player's memory fresh
+  const RELOAD_EVERY_MS = 6 * 60 * 60 * 1000;   // a full reload now and then keeps the player's memory fresh
   const VIDEO_CAP_S = 90;                        // never sit on one video longer than this
   const started = Date.now();
-  let slides = [];
-  let i = 0;
-  let current = null;
-  let failures = 0;                              // slides in a row that would not load
+  const stage = document.getElementById('stage');
+  let data = { slides: [] };
+  let i = 0, current = null, failures = 0;
+  const shown = window.shown = [];               // recent slides, for checking from the console
 
-  function failed() {
-    failures++;
-    // Everything failing (e.g. the network is down): wait instead of spinning.
-    setTimeout(next, failures >= Math.max(slides.length, 1) ? 30000 : 0);
+  function fit() {
+    const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+    stage.style.transform = `scale(${s}) translate(-50%, -50%)`;
   }
+  addEventListener('resize', fit); fit();
+
+  const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   async function load() {
     try {
       const r = await fetch('slides.json?t=' + Date.now(), { cache: 'no-store' });
-      if (r.ok) {
-        const data = await r.json();
-        if (Array.isArray(data.slides) && data.slides.length) slides = data.slides;
-      }
+      if (r.ok) { const d = await r.json(); if (Array.isArray(d.slides) && d.slides.length) data = d; }
     } catch (e) { /* keep showing what we had */ }
   }
 
-  // Recent slides, for checking playback from the browser console: window.shown
-  const shown = window.shown = [];
-
-  function show(el) {
-    if (!el.isConnected) document.body.appendChild(el);
-    void el.offsetWidth;                         // apply the starting style so the fade runs (no requestAnimationFrame: it pauses when hidden)
+  function show(el, label) {
+    if (!el.isConnected) stage.insertBefore(el, stage.querySelector('.hazard.bottom'));
+    void el.offsetWidth;                         // so the fade runs (no requestAnimationFrame: it pauses when hidden)
     el.classList.add('on');
-    shown.push({ src: el.getAttribute('src'), at: new Date().toISOString() });
-    if (shown.length > 20) shown.shift();
-    const old = current;
-    current = el;
-    if (old) {
-      old.classList.remove('on');
-      setTimeout(() => { if (old.pause) old.pause(); old.remove(); }, 800);
-    }
+    const loading = document.getElementById('loading'); if (loading) loading.remove();
+    shown.push({ src: label, at: new Date().toISOString() }); if (shown.length > 20) shown.shift();
+    const old = current; current = el;
+    if (old) { old.classList.remove('on'); setTimeout(() => { old.querySelector('video')?.pause(); old.remove(); }, 900); }
+  }
+
+  function failed() {
+    failures++;
+    setTimeout(next, failures >= Math.max(data.slides.length, 1) ? 30000 : 0);   // all failing: wait, don't spin
+  }
+
+  // ---- Events slide, drawn from the event list in slides.json ----
+  function dayKey(d, tz) { return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d); }
+  function eventsSlide(s) {
+    const tz = data.timeZone || 'America/New_York';
+    const part = (d, o) => new Intl.DateTimeFormat('en-US', { timeZone: tz, ...o }).format(d);
+    const today = dayKey(new Date(), tz), tomorrow = dayKey(new Date(Date.now() + 864e5), tz);
+    const upcoming = (s.events || []).filter((e) => new Date(e.end || e.start) > new Date());
+    const rows = upcoming.map((e, n) => {
+      const d = new Date(e.start), k = dayKey(d, tz);
+      const tag = k === today ? 'Today' : k === tomorrow ? 'Tomorrow' : '';
+      const pts = e.points ? `<div class="ev-pts"><span class="n">${e.points.toLocaleString('en-US')}</span><span class="u">POINTS</span></div>` : '';
+      return `<div class="ev${n === 0 ? ' next' : ''}" style="animation-delay:${0.15 + n * 0.12}s">
+        <div class="ev-date"><div class="ev-dow">${part(d, { weekday: 'short' })}</div><div class="ev-day">${part(d, { day: 'numeric' })}</div><div class="ev-mon">${part(d, { month: 'short' })}</div></div>
+        <div class="ev-body"><div class="ev-name">${esc(e.name)}</div>
+          <div class="ev-time">${tag ? `<span class="ev-tag">${tag}</span>` : ''}<b>${part(d, { hour: 'numeric', minute: '2-digit' })}</b></div></div>
+        ${pts}</div>`;
+    }).join('');
+    const el = document.createElement('div');
+    el.className = 'slide';
+    el.innerHTML = `
+      <div class="ev-head"><img src="brand/logo-light.png" alt="">
+        <div class="ev-title"><div class="ev-kicker">Upcoming events</div><div class="ev-big">At the Bunker</div></div></div>
+      ${rows ? `<div class="ev-list">${rows}</div>` : `<div class="ev-empty"><div class="a">New events soon</div><div class="b">Ask at the counter what's coming up</div></div>`}
+      <div class="ev-foot"><div><b>Sign up</b> at the counter or on our Discord</div><div><b>${esc(data.website || '')}</b></div></div>`;
+    return el;
+  }
+
+  function memeSlide(s) {
+    const el = document.createElement('div');
+    el.className = 'slide';
+    el.innerHTML = `<div class="meme-tag">Meme Bunker</div><div class="meme-frame"></div>
+      <div class="meme-foot"><img src="brand/logo-light.png" alt=""><div>Post yours in <b>#meme-bunker</b> on our Discord</div></div>`;
+    return el;
   }
 
   async function next() {
-    if (i >= slides.length) {
+    if (i >= data.slides.length) {
       i = 0;
       if (Date.now() - started > RELOAD_EVERY_MS) { location.reload(); return; }
       await load();
     }
-    if (!slides.length) { setTimeout(next, 30000); return; }
-    document.getElementById('empty').style.display = 'none';
-    const s = slides[i++];
+    if (!data.slides.length) { setTimeout(next, 30000); return; }
+    const s = data.slides[i++];
+
+    if (s.type === 'events') {
+      failures = 0;
+      show(eventsSlide(s), 'events');
+      setTimeout(next, (s.seconds || 20) * 1000);
+      return;
+    }
+    const el = memeSlide(s);
+    const frame = el.querySelector('.meme-frame');
     if (s.type === 'video') {
       const v = document.createElement('video');
-      v.className = 'slide';
       v.src = s.src; v.muted = true; v.playsInline = true; v.autoplay = true; v.preload = 'auto';
+      frame.appendChild(v);
       let done = false;
       const go = () => { if (!done) { done = true; failures = 0; next(); } };
       v.addEventListener('ended', go);
-      v.addEventListener('error', () => { if (!done) { done = true; v.remove(); failed(); } });
-      v.addEventListener('playing', () => show(v), { once: true });
+      v.addEventListener('error', () => { if (!done) { done = true; el.remove(); failed(); } });
+      v.addEventListener('playing', () => show(el, s.src), { once: true });
       setTimeout(go, Math.min(s.seconds || VIDEO_CAP_S, VIDEO_CAP_S) * 1000 + 1000);
-      document.body.appendChild(v);
+      el.style.visibility = 'hidden'; stage.appendChild(el);   // load off-screen until it plays
+      el.addEventListener('transitionstart', () => { el.style.visibility = ''; }, { once: true });
+      v.addEventListener('playing', () => { el.style.visibility = ''; }, { once: true });
       v.play().catch(() => {});
     } else {
       const img = new Image();
-      img.className = 'slide';
-      img.onload = () => { failures = 0; show(img); setTimeout(next, (s.seconds || 12) * 1000); };
+      img.onload = () => { failures = 0; frame.appendChild(img); show(el, s.src); setTimeout(next, (s.seconds || 12) * 1000); };
       img.onerror = () => failed();
       img.src = s.src;
     }
