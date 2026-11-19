@@ -106,7 +106,8 @@
   .sp-foot b { color: var(--white); }
 
   /* ---------- Memes ---------- */
-  .meme-frame { position: absolute; left: 150px; right: 150px; top: 70px; bottom: 120px;
+  /* The frame is 1840x886; fitMeme() scales each meme up or down to fill it. */
+  .meme-frame { position: absolute; left: 40px; right: 40px; top: 34px; bottom: 116px;
                 display: flex; align-items: center; justify-content: center; }
   .meme-frame img, .meme-frame video { max-width: 100%; max-height: 100%; display: block;
                                        outline: 4px solid var(--gold); outline-offset: 10px; background: #000; }
@@ -253,6 +254,14 @@
     return el;
   }
 
+  // Size a meme to fill the frame, keeping its shape. Small ones are enlarged (up to 3x).
+  function fitMeme(m, w, h, frame) {
+    if (!w || !h) return;
+    const k = Math.min(frame.clientWidth / w, frame.clientHeight / h, 3);
+    m.style.width = Math.floor(w * k) + 'px';
+    m.style.height = Math.floor(h * k) + 'px';
+  }
+
   async function next() {
     if (i >= data.slides.length) {
       i = 0;
@@ -276,6 +285,7 @@
       const v = document.createElement('video');
       v.src = s.src; v.muted = true; v.playsInline = true; v.autoplay = true; v.preload = 'auto';
       frame.appendChild(v);
+      v.addEventListener('loadedmetadata', () => fitMeme(v, v.videoWidth, v.videoHeight, frame), { once: true });
       let done = false;
       const go = () => { if (!done) { done = true; failures = 0; next(); } };
       v.addEventListener('ended', go);
@@ -288,7 +298,7 @@
       v.play().catch(() => {});
     } else {
       const img = new Image();
-      img.onload = () => { failures = 0; frame.appendChild(img); show(el, s.src); setTimeout(next, (s.seconds || 12) * 1000); };
+      img.onload = () => { failures = 0; frame.appendChild(img); show(el, s.src); fitMeme(img, img.naturalWidth, img.naturalHeight, frame); setTimeout(next, (s.seconds || 12) * 1000); };
       img.onerror = () => failed();
       img.src = s.src;
     }

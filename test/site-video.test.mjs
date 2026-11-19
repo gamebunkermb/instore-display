@@ -34,7 +34,7 @@ describe('memeForPage', () => {
   it('shrinks big memes to fit the frame as JPEG and never enlarges small ones', async () => {
     const big = await sharp({ create: { width: 4000, height: 1000, channels: 4, background: '#f00f' } }).png().toBuffer();
     const m1 = await sharp(await memeForPage(big)).metadata();
-    expect([m1.format, m1.width, m1.height]).toEqual(['jpeg', 1620, 405]);
+    expect([m1.format, m1.width, m1.height]).toEqual(['jpeg', 1840, 460]);
     const small = await sharp({ create: { width: 300, height: 200, channels: 3, background: '#0f0' } }).png().toBuffer();
     const m2 = await sharp(await memeForPage(small)).metadata();
     expect([m2.width, m2.height]).toEqual([300, 200]);
