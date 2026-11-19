@@ -1,0 +1,45 @@
+# Settings for the in-store Yodeck screen. No secrets here: the Discord bot token and the
+# Yodeck API token are GitHub Actions secrets (and .env locally). See docs/setup.md.
+#
+# A value left as null stops the commands that need it, with a message saying which one.
+# Discord ids: turn on Developer Mode in Discord (User Settings > Advanced), then
+# right-click the server, channel or role > Copy ID.
+
+store:
+  name: Game Bunker              # keep in step with store-ops config/store.yaml -> brand.name
+  timezone: America/New_York     # every date on the screen and every league time is in this zone
+
+discord:
+  guild_id: null                 # the server
+  memes:
+    channel_id: null             # the memes channel
+    approve_emoji: "✅"          # a meme goes on the screen only when an approver reacts with this
+    approver_role_ids: []        # anyone with one of these roles counts as an approver
+    approver_user_ids: []        # and/or these people (Brent, Scott, Jared)
+    max_age_days: 60             # ignore memes posted longer ago than this
+    max_count: 20                # newest approved memes first, at most this many on the screen
+    scan_messages: 500           # how far back in the channel to look
+
+events:
+  lookahead_days: 14             # the slide lists events starting within this many days
+  max_rows: 8                    # the most events that fit on one slide
+
+league:                          # defaults for `npm run league` (creating a league's weekly events)
+  location: In store             # shown on each Discord event
+  duration_minutes: 240
+
+yodeck:
+  playlist_name: In-store display (auto)   # the script creates and owns only this playlist
+  media_tag: instore-display-auto          # and deletes only media carrying this tag
+  screen_ids: []                 # screens to push after an update (numbers from the Yodeck screen URL)
+  meme_seconds: 12
+  events_seconds: 20
+  events_every: 4                # show the events slide again after every N memes
+
+slide:
+  width: 1920
+  height: 1080
+  background: "#111418"
+  accent: "#e8b923"
+  text: "#f4f4f4"
+  muted: "#9aa3ad"

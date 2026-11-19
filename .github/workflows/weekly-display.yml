@@ -1,0 +1,51 @@
+name: Weekly in-store display
+
+# Every Monday morning: read approved memes and upcoming events from Discord, rebuild the
+# events slide, and update the Yodeck playlist. Run it by hand from the Actions tab any time
+# (for example right after approving new memes or adding a league); untick "apply" for a
+# dry run that changes nothing.
+
+on:
+  schedule:
+    - cron: "0 12 * * 1"   # Mondays 12:00 UTC = 7am EST / 8am EDT
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Apply to Yodeck (untick for a dry run)"
+        type: boolean
+        default: true
+
+concurrency:
+  group: yodeck-display
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  display:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Build slide and memes (reads Discord only)
+        run: node cli/build.mjs
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+      - name: Sync to Yodeck
+        run: node cli/sync.mjs ${{ (github.event_name == 'schedule' || inputs.apply) && '--execute' || '' }}
+        env:
+          YODECK_API_TOKEN: ${{ secrets.YODECK_API_TOKEN }}
+      - name: Keep what was built (7 days)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: display-${{ github.run_number }}
+          path: out/
+          retention-days: 7
