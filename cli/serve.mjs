@@ -10,7 +10,10 @@ import { ROOT } from '../lib/config.mjs';
 const site = join(ROOT, 'out', 'site');
 const i = process.argv.indexOf('--port');
 const port = Number(i > 0 ? process.argv[i + 1] : 8080);
-const TYPES = { '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.mp4': 'video/mp4', '.webm': 'video/webm' };
+const TYPES = {
+  '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg',
+  '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.mp4': 'video/mp4', '.webm': 'video/webm',
+};
 
 createServer(async (req, res) => {
   const path = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^([\\/]|\.\.)+/, '');

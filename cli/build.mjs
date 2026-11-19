@@ -20,7 +20,8 @@ import { selectMemes, approverCheck, roleIdsByName } from '../lib/memes.mjs';
 import { upcomingEvents } from '../lib/events.mjs';
 import { eventsSvg, svgToPng, memeForPage } from '../lib/slide.mjs';
 import { contentName } from '../lib/sync.mjs';
-import { slidesFor, eventsForPage } from '../lib/site.mjs';
+import { slidesFor, eventsForPage, eventForPage, qrSvg } from '../lib/site.mjs';
+import { loadFileEvents, fromFile, combineEvents } from '../lib/file-events.mjs';
 import { hasFfmpeg, transcode, passThroughExt } from '../lib/video.mjs';
 import { addDays, localDate, zonedToUtc } from '../lib/time.mjs';
 
@@ -59,7 +60,7 @@ if (args.has('--sample')) {
   const discord = discordClient(secret('DISCORD_BOT_TOKEN'));
   const guildId = need(config, 'discord.guild_id');
   events = upcomingEvents(await discord.scheduledEvents(guildId), {
-    timeZone: tz, lookaheadDays: config.events.lookahead_days, maxRows: config.events.max_rows,
+    timeZone: tz, lookaheadDays: config.events.spotlight_days, maxRows: 100,   // trimmed to the list window below
   });
 
   if (!args.has('--events-only')) {
@@ -123,12 +124,27 @@ if (args.has('--sample')) {
   }
 }
 
+// Add the events kept in config/events.yaml (BCP tournaments), then split into the list
+// and the tournaments that get their own spotlight slide.
+const fileEvents = loadFileEvents(join(ROOT, 'config', 'events.yaml')).map((e) => fromFile(e, { timeZone: tz }));
+const combined = combineEvents(events, fileEvents, {
+  timeZone: tz, lookaheadDays: config.events.lookahead_days, spotlightDays: config.events.spotlight_days, maxRows: config.events.max_rows,
+});
+events = combined.list;
+mkdirSync(join(site, 'qr'), { recursive: true });
+const spotlights = [];
+for (const [n, e] of combined.spotlights.entries()) {
+  let qr = null;
+  if (e.link) { qr = `qr/event-${n + 1}.svg`; writeFileSync(join(site, qr), await qrSvg(e.link)); }
+  spotlights.push({ event: eventForPage(e), qr, seconds: screen.spotlight_seconds });
+}
+
 const png = await svgToPng(eventsSvg(events, { storeName: config.store.name, timeZone: tz, slide: config.slide }));
 writeFileSync(join(site, 'events.png'), png);
 items.unshift({ name: contentName('events', png), kind: 'events', type: 'image', file: 'events.png', seconds: screen.events_seconds });
 
 const builtAt = new Date().toISOString();
-const slides = slidesFor(items, screen.events_every, eventsForPage(events));
+const slides = slidesFor(items, screen.events_every, eventsForPage(events), spotlights);
 cpSync(join(ROOT, 'web'), site, { recursive: true });          // index.html, brand/, fonts/
 // Stamp the page with a version, so screens still running an older page reload into the new one.
 const pageHtml = readFileSync(join(ROOT, 'web', 'index.html'), 'utf8');
@@ -142,6 +158,7 @@ writeFileSync(join(ROOT, 'out', 'manifest.json'), JSON.stringify({
   items,
 }, null, 2));
 
+console.log(`Tournament spotlights: ${spotlights.length}${spotlights.map((s) => `\n  ${s.event.start.slice(0, 10)}  ${s.event.name}`).join('')}`);
 console.log(`Events on the slide: ${events.length}`);
 for (const e of events) console.log(`  ${localDate(e.start, tz)}  ${e.name}${e.points ? `  (${e.points} pts)` : ''}`);
 const memeItems = items.filter((i) => i.kind === 'meme');

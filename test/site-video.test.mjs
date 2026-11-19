@@ -25,9 +25,8 @@ describe('slidesFor', () => {
 
   it('gives the page events without the points in the title', () => {
     const start = new Date('2026-12-05T15:00:00Z');
-    expect(eventsForPage([{ name: 'Escalation League – Week 3 (1,250 pts)', start, end: null, points: 1250 }])).toEqual([
-      { name: 'Escalation League – Week 3', start: '2026-12-05T15:00:00.000Z', end: null, points: 1250 },
-    ]);
+    const [e] = eventsForPage([{ name: 'Escalation League – Week 3 (1,250 pts)', start, end: null, points: 1250 }]);
+    expect(e).toMatchObject({ name: 'Escalation League – Week 3', start: '2026-12-05T15:00:00.000Z', end: null, points: 1250, link: null });
   });
 });
 

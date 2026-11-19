@@ -1,0 +1,45 @@
+# Events that aren't Discord events — mostly tournaments run on Best Coast Pairings (BCP).
+# They join the Discord events on the screen. BCP has no public API, so copy the details
+# from the event's BCP page and update `signed_up` now and then. Edit on GitHub, then run
+# the workflow (Actions → Weekly in-store display → Run workflow) to update the screen.
+#
+#   name        as on BCP
+#   game        e.g. Warhammer 40,000
+#   date        YYYY-MM-DD; start and end are HH:MM, store time (24-hour)
+#   points      army points, or leave out (e.g. Spearhead)
+#   format      shown when there are no points, e.g. Spearhead
+#   entry       entry fee as text, e.g. $25
+#   seats       the player cap
+#   signed_up   how many have signed up, and signed_up_on the date you counted.
+#               Older than 7 days, the screen hides the count rather than show a stale one.
+#   link        the BCP event page; the screen shows it as a QR code to sign up
+#   spotlight   true: also gets its own big slide, from 45 days before the event
+
+events:
+  - name: The Grimdark Before Christmas
+    game: Warhammer 40,000
+    kind: RTT
+    date: 2026-12-05
+    start: "09:30"
+    end: "20:00"
+    points: 2000
+    entry: $25
+    seats: 16
+    signed_up: 13
+    signed_up_on: 2026-11-19
+    link: https://www.bestcoastpairings.com/event/o8OnbwHqOl9q
+    spotlight: true
+
+  - name: Learn to Play Spearhead!
+    game: Age of Sigmar
+    kind: RTT
+    date: 2026-12-12
+    start: "10:00"
+    end: "19:00"
+    format: Spearhead
+    entry: $15
+    seats: 10
+    signed_up: 1
+    signed_up_on: 2026-11-19
+    link: https://www.bestcoastpairings.com/event/vmkwLuOTgKYX
+    spotlight: true

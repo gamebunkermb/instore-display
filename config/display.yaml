@@ -26,6 +26,7 @@ discord:
 
 events:
   lookahead_days: 14             # the slide lists events starting within this many days
+  spotlight_days: 45             # tournaments marked spotlight in config/events.yaml get their own slide this far ahead
   max_rows: 8                    # the most events that fit on one slide
 
 league:                          # defaults for `npm run league` (creating a league's weekly events)
@@ -35,6 +36,7 @@ league:                          # defaults for `npm run league` (creating a lea
 screen:                          # what plays, and for how long
   meme_seconds: 12
   events_seconds: 20
+  spotlight_seconds: 15          # each tournament spotlight slide
   events_every: 4                # show the events slide again after every N memes
   video_max_seconds: 60          # longer videos are cut here
   video_max_mb: 50               # bigger video files are skipped

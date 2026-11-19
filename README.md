@@ -17,6 +17,15 @@ You can also run it any time from Actions → *Weekly in-store display* → Run 
 
 **Status and what's left to do: [docs/setup.md](docs/setup.md).**
 
+## Tournaments from Best Coast Pairings
+
+BCP has no public API, so tournaments live in [config/events.yaml](config/events.yaml):
+name, game, date and times, points (or format), entry fee, seats, sign-ups and the BCP link.
+Ones marked `spotlight: true` get their own big slide with a QR code to the BCP sign-up
+page, from 45 days out; within 14 days they also join the events list. Edit the file on
+GitHub (update `signed_up` and `signed_up_on` now and then; a count older than a week is
+hidden), then run the workflow.
+
 ## Managing events
 
 The screen shows the Discord server's events, so events are managed on Discord. You can do
