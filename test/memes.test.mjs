@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { imagesOf, hasEmoji, selectMemes, approverCheck, snowflakeDate, roleIdsByName } from '../lib/memes.mjs';
+import { mediaOf, hasEmoji, selectMemes, approverCheck, snowflakeDate, roleIdsByName } from '../lib/memes.mjs';
 
 describe('roleIdsByName', () => {
   const roles = [{ id: '1', name: 'Store Owners' }, { id: '2', name: 'Administrator' }, { id: '3', name: 'Dup' }, { id: '4', name: 'dup' }];
@@ -29,8 +29,11 @@ describe('helpers', () => {
   it('reads time from a snowflake', () => {
     expect(snowflakeDate(flake('2026-11-01T00:00:00Z', 5)).toISOString()).toBe('2026-11-01T00:00:00.000Z');
   });
-  it('takes image attachments only', () => {
-    expect(imagesOf(msg('1', { images: 2, text: true })).map((i) => i.key)).toEqual(['1-a0', '1-a1']);
+  it('takes image and video attachments, not other files', () => {
+    const m = msg('1', { images: 2, text: true });
+    m.attachments.push({ id: 'v', url: 'https://cdn/clip.mov', filename: 'clip.mov', content_type: 'video/quicktime', size: 5 });
+    m.attachments.push({ id: 'w', url: 'https://cdn/clip2', filename: 'clip2.mp4' });
+    expect(mediaOf(m).map((i) => [i.key, i.type])).toEqual([['1-a0', 'image'], ['1-a1', 'image'], ['1-v', 'video'], ['1-w', 'video']]);
   });
   it('matches unicode and custom emoji', () => {
     expect(hasEmoji(msg('1'), '✅')).toBe(true);

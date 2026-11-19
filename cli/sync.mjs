@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Makes the Yodeck playlist match out/manifest.json (run `build` first).
+// Makes a Yodeck playlist match out/manifest.json (run `build` first). Needs Yodeck's API,
+// which only Premium and Enterprise plans have; the store's screen uses the web page instead.
 // Dry run by default: prints what it would upload, delete and push.
 //
 //   npm run sync                       dry run
@@ -24,7 +25,7 @@ const manifest = JSON.parse(readFileSync(join(ROOT, 'out', 'manifest.json'), 'ut
 const yodeck = yodeckClient(secret('YODECK_API_TOKEN'));
 
 const existing = await yodeck.listMedia(y.media_tag);
-const plan = planSync(manifest.items, existing, { tag: y.media_tag, every: y.events_every });
+const plan = planSync(manifest.items, existing, { tag: y.media_tag, every: config.screen.events_every });
 const playlist = await yodeck.findPlaylist(y.playlist_name);
 
 console.log(`Playlist "${y.playlist_name}": ${playlist ? `id ${playlist.id}` : 'not found, will be created'}`);
@@ -41,8 +42,8 @@ if (!execute) {
 
 const ids = new Map(plan.keep.map((k) => [k.name, k.id]));
 for (const u of plan.uploads) {
-  const png = readFileSync(join(ROOT, 'out', u.file));
-  ids.set(u.name, await yodeck.uploadImage({ name: u.name, png, tag: y.media_tag, seconds: u.seconds }));
+  const bytes = readFileSync(join(ROOT, 'out', 'site', u.file));
+  ids.set(u.name, await yodeck.uploadMedia({ name: u.name, bytes, type: u.type, file: u.file, tag: y.media_tag, seconds: u.seconds }));
   console.log(`uploaded ${u.name} -> ${ids.get(u.name)}`);
 }
 

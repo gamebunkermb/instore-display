@@ -5,14 +5,17 @@ Runs the store's Yodeck screen. Every Monday a GitHub Action:
 1. Reads the Discord server's **scheduled events** for the next 14 days and draws an
    **Upcoming Events** slide (date, time, name and army points, e.g. *Escalation League –
    Week 3 · 1,250 pts*).
-2. Collects **memes from the memes channel that a staff member approved with ✅**.
-3. Uploads anything new to Yodeck, rebuilds the playlist *In-store display (auto)* (events
-   slide, then memes, with the events slide again every 4 memes), pushes the screen, and
-   deletes media it no longer uses.
+2. Collects **memes from the memes channel that a staff member approved with ✅**, images
+   and videos (videos re-encoded to silent 720p MP4).
+3. Builds a slideshow web page (events slide, then memes, with the events slide again every
+   4 memes) and publishes it to GitHub Pages: https://gamebunkermb.github.io/instore-display/
+
+The Yodeck screen shows that page as a "Web Page" item (Yodeck's free plan has no API), so
+new content reaches the screen without anyone touching Yodeck.
 
 You can also run it any time from Actions → *Weekly in-store display* → Run workflow.
 
-First time? See [docs/setup.md](docs/setup.md).
+**Status and what's left to do: [docs/setup.md](docs/setup.md).**
 
 ## Managing events
 
@@ -61,17 +64,20 @@ in the title or description: `Points: 2000` or `2000 pts`.
   customer's ✅ does nothing.
 - Creating, editing or cancelling Discord events is a dry run until a person adds
   `--execute --confirm <n>`.
-- On Yodeck it touches only its own playlist and media tagged `instore-display-auto`. It
-  never changes which playlist a screen shows.
+- Nothing here changes Yodeck. The screen shows the published page; which playlist a
+  screen plays is set by a person in Yodeck.
+- The published page is public but unlisted (no-index) and only holds approved memes and
+  the events list.
 
 ## Layout
 
 | Path | What |
 |---|---|
 | `config/display.yaml` | Ids, timings, colours. No secrets |
-| `lib/` | `discord`, `yodeck` (API clients), `memes` (approval), `events` (points, slide list), `manage` (create/edit/cancel bodies), `league`, `slide`, `sync` (plan), `time` |
-| `cli/` | `build` (Discord → `out/`), `sync` (`out/` → Yodeck), `events` (list/create/edit/cancel), `league` |
-| `.github/workflows/weekly-display.yml` | The Monday run |
+| `lib/` | `discord`, `yodeck` (API clients), `memes` (approval), `events` (points, slide list), `manage` (create/edit/cancel bodies), `league`, `slide`, `site` (slide order), `video`, `sync` (plan), `time` |
+| `web/index.html` | The slideshow page the screen shows |
+| `cli/` | `build` (Discord → `out/site/`), `serve` (preview it), `events` (list/create/edit/cancel), `league`, `sync` (Yodeck API, Premium only; unused) |
+| `.github/workflows/weekly-display.yml` | The Monday run: build, then publish to GitHub Pages |
 
 Node ≥ 22, ESM, vitest (`npm test`). Secrets: `.env` locally, repository secrets in GitHub.
 Why this is its own repo and not in store-ops: store-ops `docs/decisions/2026-11-19-instore-display-repo.md`.

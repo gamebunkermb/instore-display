@@ -1,29 +1,32 @@
 name: Weekly in-store display
 
 # Every Monday morning: read approved memes and upcoming events from Discord, rebuild the
-# events slide, and update the Yodeck playlist. Run it by hand from the Actions tab any time
-# (for example right after approving new memes or adding a league); untick "apply" for a
-# dry run that changes nothing.
+# slideshow page, and publish it to GitHub Pages. The Yodeck screen shows that page (a
+# "Web Page" media item), so nothing in Yodeck changes when the content does.
+# Run it by hand from the Actions tab any time, e.g. right after approving memes or adding
+# events. Untick "publish" to build only and download the result from the run.
 
 on:
   schedule:
     - cron: "0 12 * * 1"   # Mondays 12:00 UTC = 7am EST / 8am EDT
   workflow_dispatch:
     inputs:
-      apply:
-        description: "Apply to Yodeck (untick for a dry run)"
+      publish:
+        description: "Publish to the screen (untick to build only)"
         type: boolean
         default: true
 
 concurrency:
-  group: yodeck-display
+  group: instore-display
   cancel-in-progress: false
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  display:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -34,18 +37,31 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - name: Build slide and memes (reads Discord only)
+      - name: Install ffmpeg (for video memes)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null
+      - name: Build the page (reads Discord only)
         run: node cli/build.mjs
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-      - name: Sync to Yodeck
-        run: node cli/sync.mjs ${{ (github.event_name == 'schedule' || inputs.apply) && '--execute' || '' }}
-        env:
-          YODECK_API_TOKEN: ${{ secrets.YODECK_API_TOKEN }}
-      - name: Keep what was built (7 days)
-        if: always()
+      - name: Keep a copy of what was built (7 days)
         uses: actions/upload-artifact@v4
         with:
           name: display-${{ github.run_number }}
           path: out/
           retention-days: 7
+      - name: Package for Pages
+        if: github.event_name == 'schedule' || inputs.publish
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: out/site
+
+  publish:
+    needs: build
+    if: github.event_name == 'schedule' || inputs.publish
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

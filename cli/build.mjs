@@ -1,28 +1,37 @@
 #!/usr/bin/env node
-// Reads Discord (read only) and writes out/: the events slide, the approved memes as
-// screen-sized PNGs, and out/manifest.json for `sync`. Changes nothing anywhere.
+// Reads Discord (read only) and builds the screen into out/site/: the slideshow page
+// (index.html + slides.json), the events slide, and the approved memes, images as
+// screen-sized PNGs and videos as small MP4s. Changes nothing anywhere.
+// The weekly workflow publishes out/site/ to GitHub Pages; Yodeck shows that page.
 //
-//   npm run build                 memes + events
-//   npm run build -- --events-only   skip memes (no Discord memes setup needed)
-//   npm run build -- --sample        no Discord at all: a sample events slide to check the look
+//   npm run build                    memes + events
+//   npm run build -- --events-only   skip memes
+//   npm run build -- --sample        no Discord at all: sample events, to check the look
+//
+// Then open out/site/index.html through a local server to watch it, e.g.
+//   npx http-server out/site    (the page reads slides.json, which file:// blocks)
 
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, rmSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { ROOT, loadConfig, loadEnv, need, secret } from '../lib/config.mjs';
 import { discordClient } from '../lib/discord.mjs';
 import { selectMemes, approverCheck, roleIdsByName } from '../lib/memes.mjs';
 import { upcomingEvents } from '../lib/events.mjs';
 import { eventsSvg, svgToPng, fitMeme } from '../lib/slide.mjs';
 import { contentName } from '../lib/sync.mjs';
+import { slidesFor } from '../lib/site.mjs';
+import { hasFfmpeg, transcode, passThroughExt } from '../lib/video.mjs';
 import { addDays, localDate, zonedToUtc } from '../lib/time.mjs';
 
 const args = new Set(process.argv.slice(2));
 const config = loadConfig();
 loadEnv();
 const tz = config.store.timezone;
-const out = join(ROOT, 'out');
-rmSync(out, { recursive: true, force: true });
-mkdirSync(join(out, 'memes'), { recursive: true });
+const screen = config.screen;
+const site = join(ROOT, 'out', 'site');
+rmSync(join(ROOT, 'out'), { recursive: true, force: true });
+mkdirSync(join(site, 'memes'), { recursive: true });
 
 const items = [];
 let events;
@@ -35,6 +44,12 @@ if (args.has('--sample')) {
     { name: 'Paint Night', start: zonedToUtc(addDays(today, 5), '18:30', tz), points: null },
     { name: 'Escalation League – Week 3', start: zonedToUtc(addDays(today, 8), '18:00', tz), points: 1250 },
   ];
+  for (const [n, color] of [[1, '#2b6cb0'], [2, '#9b2c2c']]) {   // two stand-in memes
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900"><rect width="900" height="900" fill="${color}"/><text x="450" y="470" font-size="90" text-anchor="middle" fill="#fff" font-family="sans-serif">Sample meme ${n}</text></svg>`;
+    const file = `memes/meme-sample-${n}.png`;
+    writeFileSync(join(site, file), await fitMeme(Buffer.from(svg), config.slide));
+    items.push({ name: `meme-sample-${n}`, kind: 'meme', type: 'image', file, seconds: screen.meme_seconds });
+  }
 } else {
   const discord = discordClient(secret('DISCORD_BOT_TOKEN'));
   const guildId = need(config, 'discord.guild_id');
@@ -60,34 +75,67 @@ if (args.has('--sample')) {
         memberRoles: (userId) => discord.memberRoles(guildId, userId),
       }),
     });
+
+    const ffmpeg = hasFfmpeg();
+    const tmp = join(tmpdir(), `instore-display-${process.pid}`);
+    mkdirSync(tmp, { recursive: true });
     for (const meme of memes) {
-      const res = await fetch(meme.url);
-      if (!res.ok) { console.warn(`skip meme ${meme.key}: download ${res.status}`); continue; }
+      const name = `meme-${meme.key}`;
       try {
-        const png = await fitMeme(Buffer.from(await res.arrayBuffer()), config.slide);
-        const name = `meme-${meme.key}`;
-        const file = join('memes', `${name}.png`);
-        writeFileSync(join(out, file), png);
-        items.push({ name, kind: 'meme', file, seconds: config.yodeck.meme_seconds, postedAt: meme.postedAt });
+        if (meme.type === 'video' && meme.size && meme.size > screen.video_max_mb * 1024 * 1024) {
+          console.warn(`skip video ${meme.key}: over ${screen.video_max_mb} MB`);
+          continue;
+        }
+        if (meme.type === 'video' && !ffmpeg && !passThroughExt(meme.filename)) {
+          console.warn(`skip video ${meme.key}: ${meme.filename} needs ffmpeg to convert`);
+          continue;
+        }
+        const res = await fetch(meme.url);
+        if (!res.ok) { console.warn(`skip meme ${meme.key}: download ${res.status}`); continue; }
+        const bytes = Buffer.from(await res.arrayBuffer());
+        if (meme.type === 'video') {
+          let file;
+          if (ffmpeg) {
+            const src = join(tmp, `${name}.src`);
+            writeFileSync(src, bytes);
+            file = `memes/${name}.mp4`;
+            transcode(src, join(site, file), { maxSeconds: screen.video_max_seconds });
+          } else {
+            file = `memes/${name}.${passThroughExt(meme.filename)}`;
+            writeFileSync(join(site, file), bytes);
+          }
+          items.push({ name, kind: 'meme', type: 'video', file, seconds: screen.video_max_seconds, postedAt: meme.postedAt });
+        } else {
+          const file = `memes/${name}.png`;
+          writeFileSync(join(site, file), await fitMeme(bytes, config.slide));
+          items.push({ name, kind: 'meme', type: 'image', file, seconds: screen.meme_seconds, postedAt: meme.postedAt });
+        }
       } catch (e) {
         console.warn(`skip meme ${meme.key}: ${e.message}`);
       }
     }
+    rmSync(tmp, { recursive: true, force: true });
   }
 }
 
 const png = await svgToPng(eventsSvg(events, { storeName: config.store.name, timeZone: tz, slide: config.slide }));
-const eventsName = contentName('events', png);
-writeFileSync(join(out, 'events.png'), png);
-items.unshift({ name: eventsName, kind: 'events', file: 'events.png', seconds: config.yodeck.events_seconds });
+writeFileSync(join(site, 'events.png'), png);
+items.unshift({ name: contentName('events', png), kind: 'events', type: 'image', file: 'events.png', seconds: screen.events_seconds });
 
-writeFileSync(join(out, 'manifest.json'), JSON.stringify({
-  builtAt: new Date().toISOString(),
+const builtAt = new Date().toISOString();
+const slides = slidesFor(items, screen.events_every);
+copyFileSync(join(ROOT, 'web', 'index.html'), join(site, 'index.html'));
+writeFileSync(join(site, 'slides.json'), JSON.stringify({ builtAt, slides }, null, 2));
+// For `sync` (Yodeck API, Premium plans only). Paths are relative to out/site.
+writeFileSync(join(ROOT, 'out', 'manifest.json'), JSON.stringify({
+  builtAt,
   events: events.map((e) => ({ name: e.name, start: e.start.toISOString(), points: e.points })),
   items,
 }, null, 2));
 
 console.log(`Events on the slide: ${events.length}`);
 for (const e of events) console.log(`  ${localDate(e.start, tz)}  ${e.name}${e.points ? `  (${e.points} pts)` : ''}`);
-console.log(`Approved memes: ${items.filter((i) => i.kind === 'meme').length}`);
-console.log(`Wrote ${join('out', 'events.png')} and out/manifest.json`);
+const memeItems = items.filter((i) => i.kind === 'meme');
+console.log(`Approved memes: ${memeItems.length} (${memeItems.filter((i) => i.type === 'video').length} video)`);
+console.log(`Slides in one loop: ${slides.length}`);
+console.log('Wrote out/site/ (index.html, slides.json, events.png, memes/)');

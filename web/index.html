@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>In-store display</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111418; overflow: hidden; cursor: none; }
+  .slide { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
+           background: #111418; opacity: 0; transition: opacity .6s ease; }
+  .slide.on { opacity: 1; }
+  #empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+           color: #9aa3ad; font: 4vw system-ui, sans-serif; }
+</style>
+</head>
+<body>
+<div id="empty">Loading…</div>
+<script>
+// The screen's slideshow. slides.json is rebuilt by the weekly GitHub Action; this page
+// re-reads it at the end of every loop, so new content appears without touching Yodeck.
+(() => {
+  const RELOAD_EVERY_MS = 6 * 60 * 60 * 1000;   // full page reload now and then keeps the player's memory fresh
+  const VIDEO_CAP_S = 90;                        // never sit on one video longer than this
+  const started = Date.now();
+  let slides = [];
+  let i = 0;
+  let current = null;
+  let failures = 0;                              // slides in a row that would not load
+
+  function failed() {
+    failures++;
+    // Everything failing (e.g. the network is down): wait instead of spinning.
+    setTimeout(next, failures >= Math.max(slides.length, 1) ? 30000 : 0);
+  }
+
+  async function load() {
+    try {
+      const r = await fetch('slides.json?t=' + Date.now(), { cache: 'no-store' });
+      if (r.ok) {
+        const data = await r.json();
+        if (Array.isArray(data.slides) && data.slides.length) slides = data.slides;
+      }
+    } catch (e) { /* keep showing what we had */ }
+  }
+
+  // Recent slides, for checking playback from the browser console: window.shown
+  const shown = window.shown = [];
+
+  function show(el) {
+    if (!el.isConnected) document.body.appendChild(el);
+    void el.offsetWidth;                         // apply the starting style so the fade runs (no requestAnimationFrame: it pauses when hidden)
+    el.classList.add('on');
+    shown.push({ src: el.getAttribute('src'), at: new Date().toISOString() });
+    if (shown.length > 20) shown.shift();
+    const old = current;
+    current = el;
+    if (old) {
+      old.classList.remove('on');
+      setTimeout(() => { if (old.pause) old.pause(); old.remove(); }, 800);
+    }
+  }
+
+  async function next() {
+    if (i >= slides.length) {
+      i = 0;
+      if (Date.now() - started > RELOAD_EVERY_MS) { location.reload(); return; }
+      await load();
+    }
+    if (!slides.length) { setTimeout(next, 30000); return; }
+    document.getElementById('empty').style.display = 'none';
+    const s = slides[i++];
+    if (s.type === 'video') {
+      const v = document.createElement('video');
+      v.className = 'slide';
+      v.src = s.src; v.muted = true; v.playsInline = true; v.autoplay = true; v.preload = 'auto';
+      let done = false;
+      const go = () => { if (!done) { done = true; failures = 0; next(); } };
+      v.addEventListener('ended', go);
+      v.addEventListener('error', () => { if (!done) { done = true; v.remove(); failed(); } });
+      v.addEventListener('playing', () => show(v), { once: true });
+      setTimeout(go, Math.min(s.seconds || VIDEO_CAP_S, VIDEO_CAP_S) * 1000 + 1000);
+      document.body.appendChild(v);
+      v.play().catch(() => {});
+    } else {
+      const img = new Image();
+      img.className = 'slide';
+      img.onload = () => { failures = 0; show(img); setTimeout(next, (s.seconds || 12) * 1000); };
+      img.onerror = () => failed();
+      img.src = s.src;
+    }
+  }
+
+  load().then(next);
+})();
+</script>
+</body>
+</html>

@@ -31,13 +31,19 @@ league:                          # defaults for `npm run league` (creating a lea
   location: In store             # shown on each Discord event
   duration_minutes: 240
 
-yodeck:
-  playlist_name: In-store display (auto)   # the script creates and owns only this playlist
-  media_tag: instore-display-auto          # and deletes only media carrying this tag
-  screen_ids: []                 # screens to push after an update (numbers from the Yodeck screen URL)
+screen:                          # what plays, and for how long
   meme_seconds: 12
   events_seconds: 20
   events_every: 4                # show the events slide again after every N memes
+  video_max_seconds: 60          # longer videos are cut here
+  video_max_mb: 50               # bigger video files are skipped
+
+# Only for `npm run sync`, which needs Yodeck's API (Premium or Enterprise plans). The store
+# is on the free Basic plan, so the screen uses the web page instead (docs/setup.md).
+yodeck:
+  playlist_name: In-store display (auto)   # the script creates and owns only this playlist
+  media_tag: instore-display-auto          # and deletes only media carrying this tag
+  screen_ids: []                 # screens to push after an update. Empty: never touch a screen
 
 slide:
   width: 1920

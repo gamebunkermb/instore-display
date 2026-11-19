@@ -1,62 +1,56 @@
-# One-time setup
+# Setup and status
 
-About 20 minutes. Do these in order. Nothing runs against Yodeck until step 4 is done.
+## How it works
 
-## 1. Discord bot (reads memes and events; creates league events)
+Yodeck is on the **free Basic plan**, which has no API. So the screen shows a **web page**
+instead: every Monday the GitHub workflow reads Discord, builds a slideshow page (events
+slide + approved memes, videos included) and publishes it to GitHub Pages at
 
-1. Go to <https://discord.com/developers/applications> → **New Application**, name it e.g.
-   "In-store display".
-2. **Bot** tab → **Reset Token** → copy the token into Keeper. That is `DISCORD_BOT_TOKEN`.
-3. Same tab, **Privileged Gateway Intents** → turn on **Message Content Intent**. Without it
-   Discord hides attachments from the bot and no memes are found.
-4. **OAuth2 → URL Generator**: scope `bot`; permissions **View Channels**, **Read Message
-   History**, **Create Events** and **Manage Events**. Open the URL and add the bot to the server.
-5. Make sure the bot's role can see the memes channel (channel settings → Permissions).
+**https://gamebunkermb.github.io/instore-display/**
 
-## 2. Fill in `config/display.yaml`
+In Yodeck that address is one "Web Page" item. The page re-reads its slide list at the end
+of every loop, so new content reaches the screen without anyone touching Yodeck.
 
-Turn on Developer Mode in Discord (User Settings → Advanced), then right-click → **Copy ID**:
+The `sync` command (upload to Yodeck through its API) is kept for a Premium plan but is not
+used.
 
-- `discord.guild_id`: the server.
-- `discord.memes.channel_id`: the memes channel.
-- `discord.memes.approver_role_names`: the role(s) whose members approve memes, by name
-  (e.g. "Store Owners"); the bot looks up the ids. Or `approver_role_ids` /
-  `approver_user_ids` by id.
+## Done (2026-11-19)
 
-**How memes get approved:** an approver reacts ✅ to a meme in the channel. Only those go on
-the screen; anyone else's ✅ does not count. To take one down, remove your ✅ (it disappears
-at the next run).
+- Discord bot **Store-Display** created, private, Message Content Intent on, invited to
+  Game Bunker Myrtle Beach.
+- `config/display.yaml`: server, #🤡-meme-bunker, approvers = Store Owners role + Jared.
+- Yodeck (nothing on the screen changed; nothing pushed):
+  - Web Page item **In-store display (memes + events)** → the address above, default
+    duration 3600 s, page refresh off (the page refreshes itself).
+  - Playlist **In-store display (memes + events) (1)** holding just that item. Not assigned
+    to any screen. The screen **Game Bunker Register** still shows **Register**.
 
-## 3. Yodeck API token
+## Left for Brent (in order)
 
-Needs a Premium or Enterprise plan. Yodeck → Account Settings → Advanced Settings → **API
-Tokens** → Generate Token. Give it a name (that's the label) and a role that can edit media,
-playlists and screens. The secret is shown once. `YODECK_API_TOKEN` is `label:value`, e.g.
-`instore-display:abc123`.
+1. **Turn on GitHub Pages.** Repo → Settings → Pages → Source: **GitHub Actions**.
+   (Claude was not allowed to change this setting.) If GitHub says Pages on a private repo
+   needs a paid plan, either take GitHub Pro (about $4/month) or make this repo public:
+   it holds code and Discord ids, no secrets.
+2. **Add the Discord bot token.** developer portal → Store-Display → Bot → **Reset Token**,
+   save it in Keeper, then repo → Settings → Secrets and variables → Actions → New secret
+   `DISCORD_BOT_TOKEN`.
+3. **Run it once.** Actions → *Weekly in-store display* → Run workflow (publish ticked).
+   Open the address above: the events slide, then memes.
+4. **Approve some memes:** react ✅ in #🤡-meme-bunker (Store Owners or Jared), then run the
+   workflow again or wait for Monday.
+5. **Put it on the screen when you're happy.** Either:
+   - set the screen's content to the playlist **In-store display (memes + events) (1)**, or
+   - add the Web Page item to the **Register** playlist next to what's there now (give it a
+     few minutes, e.g. 300 s; it starts at the events slide each time it comes round).
+   Then **Push to Screens**.
+6. Optional: the bot's username is spelled "Store-Dsiplay" (Bot page → Username).
 
-## 4. GitHub secrets, then a dry run
+## Good to know
 
-Repo → Settings → Secrets and variables → Actions → **New repository secret**:
-`DISCORD_BOT_TOKEN` and `YODECK_API_TOKEN`.
-
-Then Actions → **Weekly in-store display** → Run workflow with **apply unticked**. Check the
-log (what it would upload) and the `display-N` download (the slide and memes). Run it again
-with apply ticked. The first applied run creates the playlist **In-store display (auto)**.
-
-## 5. Point the screen at the playlist (once, in Yodeck)
-
-Screens → your screen → set its content to the playlist **In-store display (auto)** → Save
-and push. Then put the screen's number (from its URL) in `yodeck.screen_ids` so each weekly
-update pushes to it automatically. The script never changes which playlist a screen shows.
-
-## Running locally (optional)
-
-```powershell
-npm install
-copy .env.example .env    # then fill in the two values
-npm run build
-npm run sync              # dry run
-npm run sync -- --execute
-```
-
-`npm run build -- --sample` draws the events slide with made-up events, no Discord needed.
+- The page is public but unlisted and marked no-index. It only ever holds approved memes
+  and the events list.
+- Videos are re-encoded to silent 720p MP4, cut at 60 s (`screen.video_max_seconds`).
+- Preview locally: `npm run build -- --sample` then `npm run serve` and open
+  http://localhost:8080. `npm run build` does the real thing with the token in `.env`.
+- Discord bot permissions it needs: View Channels, Read Message History, Create Events,
+  Manage Events. Message Content Intent must stay on or no memes are found.

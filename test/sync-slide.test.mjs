@@ -80,7 +80,7 @@ describe('yodeck client upload', () => {
       throw new Error(`unexpected ${url}`);
     };
     const y = yodeckClient('label:secret', { fetchImpl, sleep: async () => {} });
-    expect(await y.uploadImage({ name: 'meme-1', png: Buffer.from('x'), tag: 't', seconds: 12 })).toBe(7);
+    expect(await y.uploadMedia({ name: 'meme-1', bytes: Buffer.from('x'), tag: 't', seconds: 12 })).toBe(7);
     const s3 = calls.find((c) => c.url.startsWith('https://s3.example'));
     expect(s3.auth).toBeUndefined();
     expect(calls[0].auth).toBe('Token label:secret');
