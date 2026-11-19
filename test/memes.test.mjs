@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { imagesOf, hasEmoji, selectMemes, approverCheck, snowflakeDate } from '../lib/memes.mjs';
+import { imagesOf, hasEmoji, selectMemes, approverCheck, snowflakeDate, roleIdsByName } from '../lib/memes.mjs';
+
+describe('roleIdsByName', () => {
+  const roles = [{ id: '1', name: 'Store Owners' }, { id: '2', name: 'Administrator' }, { id: '3', name: 'Dup' }, { id: '4', name: 'dup' }];
+  it('finds roles by name, ignoring case and spaces', () => {
+    expect(roleIdsByName(roles, ['store owners ', 'Administrator'])).toEqual(['1', '2']);
+  });
+  it('refuses a missing or ambiguous name', () => {
+    expect(() => roleIdsByName(roles, ['Staff'])).toThrow(/no role named "Staff"/);
+    expect(() => roleIdsByName(roles, ['DUP'])).toThrow(/more than one/);
+  });
+});
 
 // Snowflake for a given time (worker/sequence bits zero).
 const flake = (iso, n = 0) => String(((BigInt(Date.parse(iso)) - 1420070400000n) << 22n) + BigInt(n));

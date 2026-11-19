@@ -19,8 +19,9 @@ Turn on Developer Mode in Discord (User Settings → Advanced), then right-click
 
 - `discord.guild_id`: the server.
 - `discord.memes.channel_id`: the memes channel.
-- `discord.memes.approver_role_ids`: e.g. the Staff role, and/or
-  `approver_user_ids`: Brent, Scott and Jared.
+- `discord.memes.approver_role_names`: the role(s) whose members approve memes, by name
+  (e.g. "Store Owners"); the bot looks up the ids. Or `approver_role_ids` /
+  `approver_user_ids` by id.
 
 **How memes get approved:** an approver reacts ✅ to a meme in the channel. Only those go on
 the screen; anyone else's ✅ does not count. To take one down, remove your ✅ (it disappears

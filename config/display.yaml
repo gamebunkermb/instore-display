@@ -10,12 +10,15 @@ store:
   timezone: America/New_York     # every date on the screen and every league time is in this zone
 
 discord:
-  guild_id: null                 # the server
+  guild_id: "1268719803607285820"          # Game Bunker Myrtle Beach
   memes:
-    channel_id: null             # the memes channel
+    channel_id: "1278516723909263380"      # #🤡-meme-bunker
     approve_emoji: "✅"          # a meme goes on the screen only when an approver reacts with this
-    approver_role_ids: []        # anyone with one of these roles counts as an approver
-    approver_user_ids: []        # and/or these people (Brent, Scott, Jared)
+    # Who can approve (Brent, 2026-11-19): the Store Owners role, plus Jared.
+    approver_role_names: ["Store Owners"]  # anyone with one of these roles counts as an approver
+    approver_role_ids: []        # the same, by id (needs Discord developer mode to copy)
+    approver_user_ids:           # and these people, by user id
+      - "150726481499127810"     # Jared (G-RAD)
     max_age_days: 60             # ignore memes posted longer ago than this
     max_count: 20                # newest approved memes first, at most this many on the screen
     scan_messages: 500           # how far back in the channel to look

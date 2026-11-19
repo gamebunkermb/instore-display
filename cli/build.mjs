@@ -10,7 +10,7 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT, loadConfig, loadEnv, need, secret } from '../lib/config.mjs';
 import { discordClient } from '../lib/discord.mjs';
-import { selectMemes, approverCheck } from '../lib/memes.mjs';
+import { selectMemes, approverCheck, roleIdsByName } from '../lib/memes.mjs';
 import { upcomingEvents } from '../lib/events.mjs';
 import { eventsSvg, svgToPng, fitMeme } from '../lib/slide.mjs';
 import { contentName } from '../lib/sync.mjs';
@@ -45,14 +45,18 @@ if (args.has('--sample')) {
   if (!args.has('--events-only')) {
     const m = config.discord.memes;
     const channelId = need(config, 'discord.memes.channel_id');
-    if (!m.approver_role_ids?.length && !m.approver_user_ids?.length) {
-      throw new Error('config/display.yaml: set discord.memes.approver_role_ids or approver_user_ids');
+    const roleIds = [...(m.approver_role_ids ?? [])];
+    if (m.approver_role_names?.length) {
+      roleIds.push(...roleIdsByName(await discord.roles(guildId), m.approver_role_names));
+    }
+    if (!roleIds.length && !m.approver_user_ids?.length) {
+      throw new Error('config/display.yaml: set discord.memes.approver_role_names, approver_role_ids or approver_user_ids');
     }
     const memes = await selectMemes(await discord.messages(channelId, m.scan_messages), {
       emoji: m.approve_emoji, maxAgeDays: m.max_age_days, maxCount: m.max_count,
       reactors: (messageId) => discord.reactors(channelId, messageId, m.approve_emoji),
       isApprover: approverCheck({
-        userIds: m.approver_user_ids ?? [], roleIds: m.approver_role_ids ?? [],
+        userIds: m.approver_user_ids ?? [], roleIds,
         memberRoles: (userId) => discord.memberRoles(guildId, userId),
       }),
     });
