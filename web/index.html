@@ -31,39 +31,42 @@
   .slide { position: absolute; inset: 22px 0; opacity: 0; transition: opacity .7s ease; }
   .slide.on { opacity: 1; }
 
-  /* ---------- Events ---------- */
-  .ev-head { position: absolute; left: 90px; right: 90px; top: 46px; height: 190px;
+  /* ---------- Events ----------
+     Rows are sized by the page from how many events there are (--h, 72–150px), and the text
+     inside is sized from --h, so 1 to 8 events always fit without clipping. */
+  .ev-head { position: absolute; left: 90px; right: 90px; top: 36px; height: 160px;
              display: flex; align-items: center; justify-content: space-between; }
-  .ev-head img { height: 170px; }
+  .ev-head img { height: 140px; }
   .ev-title { text-align: right; }
   .ev-kicker { display: inline-block; background: var(--red); color: #fff; font-weight: 700;
-               font-size: 30px; letter-spacing: 6px; padding: 6px 20px 4px; text-transform: uppercase; }
-  .ev-big { font-weight: 800; font-size: 92px; line-height: 1; margin-top: 14px; letter-spacing: 1px;
+               font-size: 28px; letter-spacing: 6px; padding: 6px 20px 4px; text-transform: uppercase; }
+  .ev-big { font-weight: 800; font-size: 84px; line-height: 1.1; margin-top: 8px; letter-spacing: 1px;
             text-transform: uppercase; color: var(--gold); text-shadow: 0 4px 0 #000; }
-  .ev-list { position: absolute; left: 90px; right: 90px; top: 268px; bottom: 96px;
-             display: flex; flex-direction: column; gap: 18px; }
+  .ev-list { position: absolute; left: 90px; right: 90px; top: 218px; bottom: 96px;
+             display: flex; flex-direction: column; gap: 14px; --h: 120px; }
   .ev { display: flex; align-items: stretch; background: var(--panel); border: 2px solid var(--line);
-        border-left: 10px solid var(--gold); min-height: 0; flex: 1 1 0; max-height: 150px;
+        border-left: 10px solid var(--gold); height: var(--h); flex: none; overflow: hidden; box-sizing: border-box;
         opacity: 0; transform: translateX(-40px); }
   .slide.on .ev { animation: in .6s cubic-bezier(.2,.8,.2,1) forwards; }
   @keyframes in { to { opacity: 1; transform: none; } }
   .ev.next { border-color: var(--gold); border-left-color: var(--red); background: #1d1a10; }
-  .ev-date { width: 190px; flex: none; background: var(--gold); color: var(--black);
-             display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+  .ev-date { width: calc(var(--h) * 1.3); flex: none; background: var(--gold); color: var(--black);
+             display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; }
   .ev.next .ev-date { background: var(--red); color: #fff; }
-  .ev-dow { font-weight: 700; font-size: 26px; letter-spacing: 3px; text-transform: uppercase; }
-  .ev-day { font-weight: 800; font-size: 64px; margin: 2px 0; }
-  .ev-mon { font-weight: 700; font-size: 24px; letter-spacing: 4px; text-transform: uppercase; }
+  .ev-dow { font-weight: 700; font-size: calc(var(--h) * .18); letter-spacing: 3px; text-transform: uppercase; }
+  .ev-day { font-weight: 800; font-size: calc(var(--h) * .42); line-height: 1; }
+  .ev-mon { font-weight: 700; font-size: calc(var(--h) * .17); letter-spacing: 4px; text-transform: uppercase; }
   .ev-body { flex: 1; padding: 0 36px; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
-  .ev-name { font-weight: 700; font-size: 52px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ev-time { font-weight: 500; font-size: 30px; color: var(--grey); margin-top: 4px; }
+  .ev-name { font-weight: 700; font-size: min(52px, calc(var(--h) * .40)); line-height: 1.25;
+             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev-time { font-weight: 500; font-size: min(30px, calc(var(--h) * .24)); line-height: 1.2; color: var(--grey); }
   .ev-time b { color: var(--gold-soft); font-weight: 600; }
-  .ev-tag { font-weight: 700; font-size: 22px; letter-spacing: 3px; color: var(--red-hot); text-transform: uppercase; margin-right: 14px; }
+  .ev-tag { font-weight: 700; font-size: .75em; letter-spacing: 3px; color: var(--red-hot); text-transform: uppercase; margin-right: 14px; }
   .ev-pts { flex: none; align-self: center; margin-right: 36px; text-align: center; line-height: 1;
-            border: 4px solid var(--gold); padding: 14px 26px 12px; transform: skewX(-8deg); }
+            border: 4px solid var(--gold); padding: calc(var(--h) * .07) 22px; transform: skewX(-8deg); }
   .ev-pts span { display: block; transform: skewX(8deg); }
-  .ev-pts .n { font-weight: 800; font-size: 54px; color: var(--gold); }
-  .ev-pts .u { font-weight: 700; font-size: 20px; letter-spacing: 6px; color: var(--white); margin-top: 4px; }
+  .ev-pts .n { font-weight: 800; font-size: min(54px, calc(var(--h) * .36)); color: var(--gold); }
+  .ev-pts .u { font-weight: 700; font-size: min(20px, calc(var(--h) * .14)); letter-spacing: 6px; color: var(--white); margin-top: 4px; }
   .ev-empty { position: absolute; inset: 300px 90px 120px; display: flex; flex-direction: column;
               align-items: center; justify-content: center; text-align: center; }
   .ev-empty .a { font-weight: 800; font-size: 96px; color: var(--gold); text-transform: uppercase; }
@@ -73,7 +76,7 @@
   .ev-foot b { color: var(--white); }
 
   .ev-fmt { flex: none; align-self: center; margin-right: 36px; border: 4px solid var(--white);
-            padding: 16px 24px 14px; font-weight: 800; font-size: 30px; letter-spacing: 4px; text-transform: uppercase;
+            padding: calc(var(--h) * .1) 22px; font-weight: 800; font-size: min(30px, calc(var(--h) * .2)); letter-spacing: 4px; text-transform: uppercase;
             transform: skewX(-8deg); }
   .ev-fmt span { display: block; transform: skewX(8deg); }
 
@@ -210,6 +213,8 @@
 
   // ---- Events slide, drawn from the event list in slides.json ----
   function dayKey(d, tz) { return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d); }
+  // The list is 722px tall with 14px gaps: rows share it, 150px at most, 72px at least.
+  const rowHeight = (n) => Math.max(72, Math.min(150, Math.floor((722 - 14 * (n - 1)) / Math.max(n, 1))));
   function eventsSlide(s) {
     const tz = data.timeZone || 'America/New_York';
     const part = (d, o) => new Intl.DateTimeFormat('en-US', { timeZone: tz, ...o }).format(d);
@@ -231,7 +236,7 @@
     el.innerHTML = `
       <div class="ev-head"><img src="brand/logo-light.png" alt="">
         <div class="ev-title"><div class="ev-kicker">Upcoming events</div><div class="ev-big">At the Bunker</div></div></div>
-      ${rows ? `<div class="ev-list">${rows}</div>` : `<div class="ev-empty"><div class="a">New events soon</div><div class="b">Ask at the counter what's coming up</div></div>`}
+      ${rows ? `<div class="ev-list" style="--h:${rowHeight(upcoming.length)}px">${rows}</div>` : `<div class="ev-empty"><div class="a">New events soon</div><div class="b">Ask at the counter what's coming up</div></div>`}
       <div class="ev-foot"><div><b>Sign up</b> at the counter or on our Discord</div><div><b>${esc(data.website || '')}</b></div></div>`;
     return el;
   }
