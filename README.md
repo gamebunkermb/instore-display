@@ -86,7 +86,7 @@ in the title or description: `Points: 2000` or `2000 pts`.
 | `lib/` | `discord`, `yodeck` (API clients), `memes` (approval), `events` (points, slide list), `manage` (create/edit/cancel bodies), `league`, `slide`, `site` (slide order), `video`, `sync` (plan), `time` |
 | `web/index.html` | The slideshow page the screen shows |
 | `cli/` | `build` (Discord → `out/site/`), `serve` (preview it), `events` (list/create/edit/cancel), `league`, `sync` (Yodeck API, Premium only; unused) |
-| `.github/workflows/weekly-display.yml` | The Monday run: build, then publish to GitHub Pages |
+| `.github/workflows/weekly-display.yml` | The daily 6 AM run: build, then publish to GitHub Pages |
 
 Node ≥ 22, ESM, vitest (`npm test`). Secrets: `.env` locally, repository secrets in GitHub.
 Why this is its own repo and not in store-ops: store-ops `docs/decisions/2026-11-19-instore-display-repo.md`.

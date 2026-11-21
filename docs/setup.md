@@ -3,7 +3,7 @@
 ## How it works
 
 Yodeck is on the **free Basic plan**, which has no API. So the screen shows a **web page**
-instead: every Monday the GitHub workflow reads Discord, builds a slideshow page (events
+instead: every morning at 6 AM the GitHub workflow reads Discord, builds a slideshow page (events
 slide + approved memes, videos included) and publishes it to GitHub Pages at
 
 **https://gamebunkermb.github.io/instore-display/**
@@ -37,7 +37,7 @@ used.
 3. **Run it once.** Actions → *Weekly in-store display* → Run workflow (publish ticked).
    Open the address above: the events slide, then memes.
 4. **Approve some memes:** react ✅ in #🤡-meme-bunker (Store Owners or Jared), then run the
-   workflow again or wait for Monday.
+   workflow again or wait for the next 6 AM run.
 5. **Put it on the screen when you're happy.** Either:
    - set the screen's content to the playlist **In-store display (memes + events) (1)**, or
    - add the Web Page item to the **Register** playlist next to what's there now (give it a
