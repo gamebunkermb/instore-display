@@ -6,7 +6,8 @@ Runs the store's Yodeck screen. Every morning at 6 AM (store time) a GitHub Acti
    **Upcoming Events** slide (date, time, name and army points, e.g. *Escalation League –
    Week 3 · 1,250 pts*).
 2. Collects **memes from the memes channel that a staff member approved with ✅**, images
-   and videos (videos re-encoded to silent 720p MP4).
+   and videos (videos re-encoded to silent 720p MP4): **Meme of the Week** first, then the
+   newest approved memes, 10 in all.
 3. Builds a slideshow web page (events slide, then memes, with the events slide again every
    4 memes) and publishes it to GitHub Pages: https://gamebunkermb.github.io/instore-display/
 
@@ -16,6 +17,29 @@ new content reaches the screen without anyone touching Yodeck.
 You can also run it any time from Actions → *Weekly in-store display* → Run workflow.
 
 **Status and what's left to do: [docs/setup.md](docs/setup.md).**
+
+## Meme of the Week
+
+- Every reaction on a meme in #meme-bunker is a vote, except the ✅ approvals. Only approved
+  memes count.
+- Each Monday's 6 AM run looks at last week (Monday to Sunday, store time). The top three by
+  votes play first, counting up: "Another Loser", "First Loser", then **Meme of the Week**
+  (20 seconds, gold). On a tie the earlier post wins; a meme needs at least one vote to place.
+- Every Friday at noon the bot posts a "don't forget to vote" reminder in #meme-bunker
+  ([config/meme-reminder.md](config/meme-reminder.md); workflow *Meme of the Week reminder*).
+- Settings: `discord.memes` in [config/display.yaml](config/display.yaml) (`max_count`,
+  `meme_of_the_week.places`, `winner_seconds`).
+
+## What runs on its own
+
+| When | Workflow | Does |
+|---|---|---|
+| Daily, 6 AM | Weekly in-store display | Reads Discord, rebuilds and publishes the page; keeps both schedules switched on |
+| Fridays, noon | Meme of the Week reminder | Bot posts the vote reminder in #meme-bunker |
+| By hand | Create league events on Discord | Makes a league's weekly events (dry run first) |
+
+Nothing runs on a store computer. The screen re-reads the page every loop and reloads itself
+when a new version is published.
 
 ## Tournaments from Best Coast Pairings
 
