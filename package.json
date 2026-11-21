@@ -13,7 +13,8 @@
     "sync": "node cli/sync.mjs",
     "league": "node cli/league.mjs",
     "events": "node cli/events.mjs",
-    "serve": "node cli/serve.mjs"
+    "serve": "node cli/serve.mjs",
+    "remind": "node cli/remind.mjs"
   },
   "dependencies": {
     "qrcode": "^1.5.4",

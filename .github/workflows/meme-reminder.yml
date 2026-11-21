@@ -1,0 +1,46 @@
+name: Meme of the Week reminder
+
+# Every Friday at noon store time the bot posts config/meme-reminder.md in #meme-bunker:
+# "don't forget to vote". Edit that file on GitHub to change the wording.
+# Run it by hand from the Actions tab; tick "post" to really post (unticked = dry run).
+
+on:
+  # UTC clock: fire at 16:00 and 17:00 UTC on Fridays, and "when" keeps the one that is
+  # noon in New York (16:00 UTC in summer, 17:00 UTC in winter).
+  schedule:
+    - cron: "0 16 * * 5"
+    - cron: "0 17 * * 5"
+  workflow_dispatch:
+    inputs:
+      post:
+        description: "Really post it (untick for a dry run)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - id: when
+        run: |
+          hour=$(TZ=America/New_York date +%H)
+          if [ "${{ github.event_name }}" != "schedule" ] || [ "$hour" = "12" ]; then go=true; else go=false; fi
+          echo "New York hour $hour, run: $go"
+          echo "go=$go" >> "$GITHUB_OUTPUT"
+      - if: steps.when.outputs.go == 'true'
+        uses: actions/checkout@v4
+      - if: steps.when.outputs.go == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.when.outputs.go == 'true'
+        run: npm ci
+      - if: steps.when.outputs.go == 'true'
+        run: node cli/remind.mjs ${{ (github.event_name == 'schedule' || inputs.post) && '--execute' || '' }}
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
