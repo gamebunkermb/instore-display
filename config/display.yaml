@@ -21,7 +21,14 @@ discord:
     approver_user_ids:           # and these people, by user id
       - "150726481499127810"     # Jared (G-RAD)
     max_age_days: 60             # ignore memes posted longer ago than this
-    max_count: 20                # newest approved memes first, at most this many on the screen
+    max_count: 10                # memes in the loop at most (Brent, 2026-11-21), contest places included
+    # Meme of the Week (Brent, 2026-11-21): among last week's approved memes (Mon–Sun, store
+    # time), the most reactions wins. Every reaction counts except the approve emoji. The
+    # places play first, counting up to the winner, then the newest approved memes.
+    meme_of_the_week:
+      enabled: true
+      places: ["Meme of the Week", "First Loser", "Another Loser"]   # 1st, 2nd, 3rd
+      winner_seconds: 20         # the winner stays up longer
     scan_messages: 500           # how far back in the channel to look
 
 events:

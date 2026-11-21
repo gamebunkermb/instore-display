@@ -144,6 +144,14 @@
   .meme-tag { position: absolute; left: 60px; top: 28px; z-index: 2; background: var(--red); color: #fff;
               font-weight: 800; font-size: 30px; letter-spacing: 5px; padding: 8px 22px 6px; transform: rotate(-3deg);
               box-shadow: 0 6px 0 #000; text-transform: uppercase; }
+  /* Meme of the Week places: a big label, the week and the vote count. */
+  .meme-tag.place { font-size: 46px; padding: 12px 30px 8px; }
+  .meme-tag.p1 { background: var(--gold); color: var(--black); }
+  .meme-sub { position: absolute; left: 76px; top: 112px; z-index: 2; background: #000; color: var(--gold-soft);
+              font-weight: 700; font-size: 26px; letter-spacing: 2px; padding: 6px 16px 4px; transform: rotate(-3deg);
+              border: 2px solid var(--line); }
+  .slide.p1 .meme-frame img, .slide.p1 .meme-frame video { outline-width: 8px; box-shadow: 0 0 60px rgba(255,215,0,.45); }
+  .slide.loser .meme-frame img, .slide.loser .meme-frame video { outline-color: var(--red); }
   .meme-foot { position: absolute; left: 60px; right: 60px; bottom: 22px; height: 80px;
                display: flex; align-items: center; justify-content: space-between; }
   .meme-foot img { height: 78px; }
@@ -313,9 +321,18 @@
 
   function memeSlide(s) {
     const el = document.createElement('div');
-    el.className = 'slide';
-    el.innerHTML = `<div class="meme-tag">Meme Bunker</div><div class="meme-frame"></div>
-      <div class="meme-foot"><img src="brand/logo-light.png" alt=""><div>Post yours in <b>#meme-bunker</b> on our Discord</div></div>`;
+    el.className = 'slide' + (s.place === 1 ? ' p1' : s.place ? ' loser' : '');
+    let tag = '<div class="meme-tag">Meme Bunker</div>';
+    if (s.place) {
+      // s.week = ['2026-11-16', '2026-11-22'] -> "Week of Nov 16–22" (or "Nov 30–Dec 6")
+      const day = (d) => new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' }).format(new Date(d + 'T12:00:00Z'));
+      const [a, b] = s.week || [];
+      const week = a ? `Week of ${day(a)}–${a.slice(5, 7) === b.slice(5, 7) ? Number(b.slice(8)) : day(b)}` : '';
+      tag = `<div class="meme-tag place p${s.place}">${esc(s.label || 'Meme of the Week')}</div>
+        <div class="meme-sub">${esc(week)}${s.votes ? ` · ${s.votes} vote${s.votes === 1 ? '' : 's'}` : ''}</div>`;
+    }
+    el.innerHTML = `${tag}<div class="meme-frame"></div>
+      <div class="meme-foot"><img src="brand/logo-light.png" alt=""><div>Post yours in <b>#meme-bunker</b> · React to vote for <b>Meme of the Week</b></div></div>`;
     return el;
   }
 

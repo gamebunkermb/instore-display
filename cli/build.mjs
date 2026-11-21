@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { ROOT, loadConfig, loadEnv, need, secret } from '../lib/config.mjs';
 import { discordClient } from '../lib/discord.mjs';
-import { selectMemes, approverCheck, roleIdsByName } from '../lib/memes.mjs';
+import { selectMemes, arrangeMemes, approverCheck, roleIdsByName } from '../lib/memes.mjs';
 import { upcomingEvents } from '../lib/events.mjs';
 import { eventsSvg, svgToPng, memeForPage } from '../lib/slide.mjs';
 import { contentName } from '../lib/sync.mjs';
@@ -24,7 +24,7 @@ import { slidesFor, eventsForPage, eventForPage, qrSvg } from '../lib/site.mjs';
 import { leaguesFrom } from '../lib/leagues.mjs';
 import { loadFileEvents, fromFile, combineEvents } from '../lib/file-events.mjs';
 import { hasFfmpeg, transcode, passThroughExt } from '../lib/video.mjs';
-import { addDays, localDate, zonedToUtc } from '../lib/time.mjs';
+import { addDays, localDate, zonedToUtc, lastWeek } from '../lib/time.mjs';
 
 const args = new Set(process.argv.slice(2));
 const config = loadConfig();
@@ -55,7 +55,9 @@ if (args.has('--sample')) {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="${color}"/><text x="${w / 2}" y="${h / 2 + 30}" font-size="90" text-anchor="middle" fill="#fff" font-family="sans-serif">Sample meme ${n}</text></svg>`;
     const file = `memes/meme-sample-${n}.jpg`;
     writeFileSync(join(site, file), await memeForPage(Buffer.from(svg)));
-    items.push({ name: `meme-sample-${n}`, kind: 'meme', type: 'image', file, seconds: screen.meme_seconds });
+    const wk = lastWeek(new Date(), tz);
+    items.push({ name: `meme-sample-${n}`, kind: 'meme', type: 'image', file, seconds: screen.meme_seconds,
+      place: 3 - n, label: ['Meme of the Week', 'First Loser'][2 - n], votes: [14, 9][2 - n], week: [wk.firstDay, wk.lastDay] });
   }
 } else {
   const discord = discordClient(secret('DISCORD_BOT_TOKEN'));
@@ -74,14 +76,21 @@ if (args.has('--sample')) {
     if (!roleIds.length && !m.approver_user_ids?.length) {
       throw new Error('config/display.yaml: set discord.memes.approver_role_names, approver_role_ids or approver_user_ids');
     }
-    const memes = await selectMemes(await discord.messages(channelId, m.scan_messages), {
-      emoji: m.approve_emoji, maxAgeDays: m.max_age_days, maxCount: m.max_count,
+    const motw = m.meme_of_the_week?.enabled ? m.meme_of_the_week : null;
+    const contest = motw ? lastWeek(new Date(), tz) : null;
+    const approved = await selectMemes(await discord.messages(channelId, m.scan_messages), {
+      emoji: m.approve_emoji, maxAgeDays: m.max_age_days, maxCount: m.max_count, contest,
       reactors: (messageId) => discord.reactors(channelId, messageId, m.approve_emoji),
       isApprover: approverCheck({
         userIds: m.approver_user_ids ?? [], roleIds,
         memberRoles: (userId) => discord.memberRoles(guildId, userId),
       }),
     });
+    const memes = arrangeMemes(approved, { contest, places: motw?.places ?? [], maxCount: m.max_count });
+    for (const p of memes.filter((x) => x.place)) console.log(`Meme of the Week ${contest.firstDay}..${contest.lastDay}: #${p.place} ${p.label} (${p.score} votes) ${p.messageId}`);
+    const contestInfo = (meme) => meme.place ? {
+      place: meme.place, label: meme.label, votes: meme.score, week: [contest.firstDay, contest.lastDay],
+    } : {};
 
     const ffmpeg = hasFfmpeg();
     const tmp = join(tmpdir(), `instore-display-${process.pid}`);
@@ -111,11 +120,11 @@ if (args.has('--sample')) {
             file = `memes/${name}.${passThroughExt(meme.filename)}`;
             writeFileSync(join(site, file), bytes);
           }
-          items.push({ name, kind: 'meme', type: 'video', file, seconds: screen.video_max_seconds, postedAt: meme.postedAt });
+          items.push({ name, kind: 'meme', type: 'video', file, seconds: screen.video_max_seconds, postedAt: meme.postedAt, ...contestInfo(meme) });
         } else {
           const file = `memes/${name}.jpg`;
           writeFileSync(join(site, file), await memeForPage(bytes));
-          items.push({ name, kind: 'meme', type: 'image', file, seconds: screen.meme_seconds, postedAt: meme.postedAt });
+          items.push({ name, kind: 'meme', type: 'image', file, seconds: meme.place === 1 ? (motw.winner_seconds ?? screen.meme_seconds) : screen.meme_seconds, postedAt: meme.postedAt, ...contestInfo(meme) });
         }
       } catch (e) {
         console.warn(`skip meme ${meme.key}: ${e.message}`);

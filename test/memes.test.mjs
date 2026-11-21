@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { mediaOf, hasEmoji, selectMemes, approverCheck, snowflakeDate, roleIdsByName } from '../lib/memes.mjs';
+import { mediaOf, hasEmoji, selectMemes, approverCheck, snowflakeDate, roleIdsByName, reactionScore, arrangeMemes } from '../lib/memes.mjs';
+import { lastWeek } from '../lib/time.mjs';
 
 describe('roleIdsByName', () => {
   const roles = [{ id: '1', name: 'Store Owners' }, { id: '2', name: 'Administrator' }, { id: '3', name: 'Dup' }, { id: '4', name: 'dup' }];
@@ -77,5 +78,46 @@ describe('approverCheck', () => {
     expect(await check('jared')).toBe(true);
     expect(await check('rando')).toBe(false);
     expect(lookups).toBe(2);
+  });
+});
+
+describe('Meme of the Week', () => {
+  const week = { from: new Date('2026-11-09T05:00:00Z'), to: new Date('2026-11-16T05:00:00Z') };
+  const voted = (id, votes) => ({ ...msg(id), reactions: [{ emoji: { id: null, name: '✅' }, count: 2 }, { emoji: { id: null, name: '😂' }, count: votes }] });
+
+  it('counts every reaction except the approve emoji', () => {
+    expect(reactionScore({ reactions: [{ emoji: { name: '✅' }, count: 3 }, { emoji: { name: '😂' }, count: 4 }, { emoji: { id: '9', name: 'lol' }, count: 2 }] }, '✅')).toBe(6);
+  });
+
+  it('last week is Monday to Sunday in store time', () => {
+    const w = lastWeek(new Date('2026-11-21T17:00:00Z'), 'America/New_York');   // Saturday
+    expect([w.firstDay, w.lastDay, w.from.toISOString(), w.to.toISOString()]).toEqual(['2026-11-09', '2026-11-15', '2026-11-09T05:00:00.000Z', '2026-11-16T05:00:00.000Z']);
+    expect(lastWeek(new Date('2026-11-16T15:00:00Z'), 'America/New_York').firstDay).toBe('2026-11-09');   // Monday
+  });
+
+  it("still finds last week's posts when the newest ones already fill the loop", async () => {
+    const fresh = ['2026-11-20', '2026-11-19'].map((d) => flake(`${d}T15:00:00Z`));
+    const old = flake('2026-11-12T15:00:00Z');
+    const messages = [msg(fresh[0]), msg(fresh[1]), voted(old, 5)];
+    const got = await selectMemes(messages, {
+      emoji: '✅', maxAgeDays: 60, maxCount: 2, now, contest: week,
+      reactors: async () => ['brent'], isApprover: async (u) => u === 'brent',
+    });
+    expect(got.map((g) => [g.messageId, g.score])).toEqual([[fresh[0], 0], [fresh[1], 0], [old, 5]]);
+  });
+
+  it('places the top 3 of the week by votes, counting up to the winner, then the newest', () => {
+    const p = (id, day, score) => ({ key: `${id}-a0`, messageId: id, postedAt: `2026-11-${day}T15:00:00.000Z`, score });
+    const picked = [p('new', 20, 50), p('a', 14, 3), p('b', 13, 9), p('c', 12, 9), p('d', 11, 1), p('zero', 10, 0)];
+    const got = arrangeMemes(picked, { contest: week, places: ['Meme of the Week', 'First Loser', 'Another Loser'], maxCount: 5 });
+    expect(got.map((g) => [g.messageId, g.place ?? null, g.label ?? null])).toEqual([
+      ['a', 3, 'Another Loser'], ['b', 2, 'First Loser'], ['c', 1, 'Meme of the Week'],   // tie on 9: the earlier post wins
+      ['new', null, null], ['d', null, null],
+    ]);
+  });
+
+  it('no votes last week means no places', () => {
+    const got = arrangeMemes([{ key: 'x', messageId: 'x', postedAt: '2026-11-12T15:00:00.000Z', score: 0 }], { contest: week, places: ['W'], maxCount: 5 });
+    expect(got[0].place).toBeUndefined();
   });
 });
