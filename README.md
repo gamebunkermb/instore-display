@@ -1,6 +1,6 @@
 # instore-display
 
-Runs the store's Yodeck screen. Every Monday a GitHub Action:
+Runs the store's Yodeck screen. Every morning at 6 AM (store time) a GitHub Action:
 
 1. Reads the Discord server's **scheduled events** for the next 14 days and draws an
    **Upcoming Events** slide (date, time, name and army points, e.g. *Escalation League –
@@ -49,7 +49,7 @@ npm run events -- cancel --match "Escalation League"
 - `cancel` marks the event cancelled on Discord, and people who clicked "Interested" are
   told. It is not deleted. `--match` cancels every scheduled event whose name contains the
   text, e.g. a whole league.
-- Changes show on the screen at the next run (Monday, or run the workflow by hand).
+- Changes show on the screen at the next run (6 AM daily, or run the workflow by hand).
 
 ## Adding a league
 

@@ -1,14 +1,18 @@
 name: Weekly in-store display
 
-# Every Monday morning: read approved memes and upcoming events from Discord, rebuild the
+# Every morning at 6 AM store time: read approved memes and upcoming events from Discord, rebuild the
 # slideshow page, and publish it to GitHub Pages. The Yodeck screen shows that page (a
 # "Web Page" media item), so nothing in Yodeck changes when the content does.
 # Run it by hand from the Actions tab any time, e.g. right after approving memes or adding
 # events. Untick "publish" to build only and download the result from the run.
 
 on:
+  # GitHub's clock is UTC and doesn't know about daylight saving, so this fires at both 10:00
+  # and 11:00 UTC and the "when" job lets through only the one that is 6 AM in New York
+  # (10:00 UTC in summer, 11:00 UTC in winter). Scheduled runs can start a few minutes late.
   schedule:
-    - cron: "0 12 * * 1"   # Mondays 12:00 UTC = 7am EST / 8am EDT
+    - cron: "0 10 * * *"
+    - cron: "0 11 * * *"
   workflow_dispatch:
     inputs:
       publish:
@@ -26,7 +30,34 @@ permissions:
   id-token: write
 
 jobs:
+  when:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.check.outputs.go }}
+    steps:
+      - id: check
+        run: |
+          hour=$(TZ=America/New_York date +%H)
+          if [ "${{ github.event_name }}" != "schedule" ] || [ "$hour" = "06" ]; then go=true; else go=false; fi
+          echo "New York hour $hour, run: $go"
+          echo "go=$go" >> "$GITHUB_OUTPUT"
+
+  # GitHub switches off scheduled workflows in a public repo after 60 days without a commit.
+  # Re-enabling this workflow each day keeps the schedule on (needs "actions: write").
+  keep-alive:
+    needs: when
+    if: needs.when.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/weekly-display.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   build:
+    needs: when
+    if: needs.when.outputs.go == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
