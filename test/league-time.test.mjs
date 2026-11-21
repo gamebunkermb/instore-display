@@ -44,6 +44,13 @@ describe('league', () => {
     expect(withoutExisting(plan, existing)).toHaveLength(2);
   });
 
+  it('numbers from a later week when the league is already under way', () => {
+    const plan = planLeague({ ...base, points: [1000, 1250, 1500], firstWeek: 3, totalWeeks: 8 });
+    expect(plan[0].payload.name).toBe('Escalation League – Week 3 (1,000 pts)');
+    expect(plan[2].payload.description).toContain('Week 5 of 8.');
+    expect(() => planLeague({ ...base, points: [1, 1, 1], firstWeek: 7, totalWeeks: 8 })).toThrow(/first-week/);
+  });
+
   it('rejects bad input', () => {
     expect(() => planLeague({ ...base, start: '1/6/2027', points: [1, 1, 1] })).toThrow(/YYYY-MM-DD/);
     expect(() => planLeague({ ...base, time: '6pm', points: [1, 1, 1] })).toThrow(/HH:MM/);

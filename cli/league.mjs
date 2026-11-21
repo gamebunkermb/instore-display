@@ -5,6 +5,7 @@
 //
 //   npm run league -- --name "Escalation League" --start 2027-01-06 --weeks 6 \
 //       --time 18:00 --points 500,750,1000,1250,1500,2000 [--every 7] [--notes "Bring a list"]
+//       [--first-week 3 --of 8]   (league already under way: name them Week 3..8 of 8)
 //   (same) --execute --confirm 6
 
 import { parseArgs } from 'node:util';
@@ -17,6 +18,7 @@ const { values: a } = parseArgs({
     name: { type: 'string' }, start: { type: 'string' }, weeks: { type: 'string' },
     time: { type: 'string' }, points: { type: 'string' }, every: { type: 'string', default: '7' },
     notes: { type: 'string' }, location: { type: 'string' }, minutes: { type: 'string' },
+    'first-week': { type: 'string', default: '1' }, of: { type: 'string' },
     execute: { type: 'boolean', default: false }, confirm: { type: 'string' },
   },
 });
@@ -34,6 +36,8 @@ const plan = planLeague({
   timeZone: config.store.timezone,
   location: a.location ?? config.league.location,
   notes: a.notes,
+  firstWeek: Number(a['first-week']),
+  totalWeeks: a.of ? Number(a.of) : undefined,
 });
 
 const guildId = need(config, 'discord.guild_id');

@@ -1,0 +1,81 @@
+name: Create league events on Discord
+
+# Makes a league's weekly Discord events (cli/league.mjs) with the bot token saved in
+# GitHub, so nobody needs the token on their own computer.
+# Run it from Actions -> "Create league events on Discord" -> Run workflow:
+#   1. Leave "confirm" empty first. That is a dry run: the log lists the weeks it would make.
+#   2. Run it again with the same inputs and "confirm" set to the number the dry run printed.
+# Rerunning skips weeks already on Discord. The screen shows them after the next display run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'League name, e.g. "40K Holiday Escalation League" (" - Week N" is added)'
+        required: true
+      start:
+        description: "Date of the first week to create (YYYY-MM-DD)"
+        required: true
+      weeks:
+        description: "How many weeks to create"
+        required: true
+      time:
+        description: "Start time, 24-hour store time (HH:MM, e.g. 18:00)"
+        required: true
+      points:
+        description: "Army points per week, comma separated (or one value for every week)"
+        required: true
+      minutes:
+        description: "Length of each night in minutes"
+        default: "240"
+      first_week:
+        description: "Week number of the first one created (e.g. 3 if weeks 1-2 already happened)"
+        default: "1"
+      of:
+        description: "Total weeks in the league (for 'Week 3 of 8'); empty = just these"
+        default: ""
+      notes:
+        description: "Text for every event's description"
+        default: ""
+      confirm:
+        description: "Empty = dry run. To create: the number of events the dry run printed"
+        default: ""
+
+concurrency:
+  group: discord-events
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  league:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Plan (and create, if confirmed)
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          IN_NAME: ${{ inputs.name }}
+          IN_START: ${{ inputs.start }}
+          IN_WEEKS: ${{ inputs.weeks }}
+          IN_TIME: ${{ inputs.time }}
+          IN_POINTS: ${{ inputs.points }}
+          IN_MINUTES: ${{ inputs.minutes }}
+          IN_FIRST: ${{ inputs.first_week }}
+          IN_OF: ${{ inputs.of }}
+          IN_NOTES: ${{ inputs.notes }}
+          IN_CONFIRM: ${{ inputs.confirm }}
+        run: |
+          args=(--name "$IN_NAME" --start "$IN_START" --weeks "$IN_WEEKS" --time "$IN_TIME"
+                --points "$IN_POINTS" --minutes "$IN_MINUTES" --first-week "$IN_FIRST")
+          [ -n "$IN_OF" ] && args+=(--of "$IN_OF")
+          [ -n "$IN_NOTES" ] && args+=(--notes "$IN_NOTES")
+          [ -n "$IN_CONFIRM" ] && args+=(--execute --confirm "$IN_CONFIRM")
+          node cli/league.mjs "${args[@]}"
