@@ -21,6 +21,7 @@ import { upcomingEvents } from '../lib/events.mjs';
 import { eventsSvg, svgToPng, memeForPage } from '../lib/slide.mjs';
 import { contentName } from '../lib/sync.mjs';
 import { slidesFor, eventsForPage, eventForPage, qrSvg } from '../lib/site.mjs';
+import { leaguesFrom } from '../lib/leagues.mjs';
 import { loadFileEvents, fromFile, combineEvents } from '../lib/file-events.mjs';
 import { hasFfmpeg, transcode, passThroughExt } from '../lib/video.mjs';
 import { addDays, localDate, zonedToUtc } from '../lib/time.mjs';
@@ -39,16 +40,16 @@ let events;
 
 if (args.has('--sample')) {
   const today = localDate(new Date(), tz);
-  const ev = (name, day, time, points) => {
+  const ev = (name, day, time, points, description = '') => {
     const start = zonedToUtc(addDays(today, day), time, tz);
-    return { name, start, end: new Date(start.getTime() + 4 * 3600e3), points };
+    return { name, start, end: new Date(start.getTime() + 4 * 3600e3), points, description };
   };
+  const wk = (n, day, pts) => ev(`40K Holiday Escalation League – Week ${n} (${pts.toLocaleString('en-US')} pts)`, day, '18:00', pts, `Week ${n} of 8.`);
   events = [
-    ev('Infinity Thursday', 0, '23:00', null),
-    ev('Escalation League – Week 2', 1, '18:00', 1000),
-    ev('Warhammer 40,000 RTT', 3, '10:00', 2000),
-    ev('Paint Night', 5, '18:30', null),
-    ev('Escalation League – Week 3', 8, '18:00', 1250),
+    ev('Age of Sigmar League', 2, '17:00', 2000),
+    ev('Skirmish Tuesdays', 3, '17:00', null),
+    wk(3, 4, 1000), wk(4, 11, 1250), wk(5, 18, 1500), wk(6, 25, 1750), wk(7, 32, 2000), wk(8, 39, 2000),
+    ev('Infinity Thursday', 5, '17:00', null),
   ];
   for (const [n, color, w, h] of [[1, '#2b6cb0', 900, 900], [2, '#9b2c2c', 1280, 720]]) {   // two stand-in memes
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="${color}"/><text x="${w / 2}" y="${h / 2 + 30}" font-size="90" text-anchor="middle" fill="#fff" font-family="sans-serif">Sample meme ${n}</text></svg>`;
@@ -126,13 +127,15 @@ if (args.has('--sample')) {
 
 // Add the events kept in config/events.yaml (BCP tournaments), then split into the list
 // and the tournaments that get their own spotlight slide.
+// Leagues ("<League> – Week N" events) get their own slide with the points ladder.
+const leagues = leaguesFrom(events);
 const fileEvents = loadFileEvents(join(ROOT, 'config', 'events.yaml')).map((e) => fromFile(e, { timeZone: tz }));
 const combined = combineEvents(events, fileEvents, {
   timeZone: tz, lookaheadDays: config.events.lookahead_days, spotlightDays: config.events.spotlight_days, maxRows: config.events.max_rows,
 });
 events = combined.list;
 mkdirSync(join(site, 'qr'), { recursive: true });
-const spotlights = [];
+const spotlights = leagues.map((league) => ({ type: 'league', league, seconds: screen.league_seconds ?? screen.spotlight_seconds }));
 for (const [n, e] of combined.spotlights.entries()) {
   let qr = null;
   if (e.link) { qr = `qr/event-${n + 1}.svg`; writeFileSync(join(site, qr), await qrSvg(e.link)); }
@@ -158,7 +161,9 @@ writeFileSync(join(ROOT, 'out', 'manifest.json'), JSON.stringify({
   items,
 }, null, 2));
 
-console.log(`Tournament spotlights: ${spotlights.length}${spotlights.map((s) => `\n  ${s.event.start.slice(0, 10)}  ${s.event.name}`).join('')}`);
+console.log(`Leagues: ${leagues.length}${leagues.map((l) => `\n  ${l.name}: weeks ${l.weeks.map((w) => w.week).join(', ')} of ${l.total}`).join('')}`);
+const tournaments = spotlights.filter((s) => s.event);
+console.log(`Tournament spotlights: ${tournaments.length}${tournaments.map((s) => `\n  ${s.event.start.slice(0, 10)}  ${s.event.name}`).join('')}`);
 console.log(`Events on the slide: ${events.length}`);
 for (const e of events) console.log(`  ${localDate(e.start, tz)}  ${e.name}${e.points ? `  (${e.points} pts)` : ''}`);
 const memeItems = items.filter((i) => i.kind === 'meme');
