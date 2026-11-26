@@ -21,5 +21,13 @@ if (!process.argv.includes('--execute')) {
   console.log('Dry run. Add --execute to post it.');
   process.exit(0);
 }
-const m = await discordClient(secret('DISCORD_BOT_TOKEN')).sendMessage(channelId, text);
+const discord = discordClient(secret('DISCORD_BOT_TOKEN'));
+// Scheduled runs can start late or twice; post at most once a day.
+const recent = await discord.messages(channelId, 50);
+const already = recent.find((x) => x.author?.bot && x.content?.trim() === text && Date.now() - Date.parse(x.timestamp) < 20 * 3600e3);
+if (already) {
+  console.log(`Already posted today (message ${already.id}), not posting again.`);
+  process.exit(0);
+}
+const m = await discord.sendMessage(channelId, text);
 console.log(`Posted message ${m.id}`);

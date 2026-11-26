@@ -5,11 +5,14 @@ name: Meme of the Week reminder
 # Run it by hand from the Actions tab; tick "post" to really post (unticked = dry run).
 
 on:
-  # UTC clock: fire at 16:00 and 17:00 UTC on Fridays, and "when" keeps the one that is
-  # noon in New York (16:00 UTC in summer, 17:00 UTC in winter).
+  # UTC clock, and scheduled runs often start hours late. So it fires several times on Friday;
+  # the "when" step lets through runs that are Friday noon or later in New York, and the
+  # script itself skips posting if the bot already posted the reminder today.
   schedule:
     - cron: "0 16 * * 5"
     - cron: "0 17 * * 5"
+    - cron: "0 19 * * 5"
+    - cron: "0 22 * * 5"
   workflow_dispatch:
     inputs:
       post:
@@ -28,7 +31,8 @@ jobs:
       - id: when
         run: |
           hour=$(TZ=America/New_York date +%H)
-          if [ "${{ github.event_name }}" != "schedule" ] || [ "$hour" = "12" ]; then go=true; else go=false; fi
+          day=$(TZ=America/New_York date +%u)
+          if [ "${{ github.event_name }}" != "schedule" ] || { [ "$day" = "5" ] && [ "$((10#$hour))" -ge 12 ]; }; then go=true; else go=false; fi
           echo "New York hour $hour, run: $go"
           echo "go=$go" >> "$GITHUB_OUTPUT"
       - if: steps.when.outputs.go == 'true'

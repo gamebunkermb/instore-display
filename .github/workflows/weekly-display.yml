@@ -7,12 +7,15 @@ name: Weekly in-store display
 # events. Untick "publish" to build only and download the result from the run.
 
 on:
-  # GitHub's clock is UTC and doesn't know about daylight saving, so this fires at both 10:00
-  # and 11:00 UTC and the "when" job lets through only the one that is 6 AM in New York
-  # (10:00 UTC in summer, 11:00 UTC in winter). Scheduled runs can start a few minutes late.
+  # GitHub's clock is UTC and doesn't know about daylight saving, and scheduled runs often
+  # start hours late. So it fires several times a day, and the "when" job builds on the first
+  # run that is 6 AM or later in New York and finds the live page not yet built today.
   schedule:
     - cron: "0 10 * * *"
     - cron: "0 11 * * *"
+    - cron: "0 13 * * *"
+    - cron: "0 16 * * *"
+    - cron: "0 20 * * *"
   workflow_dispatch:
     inputs:
       publish:
@@ -38,8 +41,13 @@ jobs:
       - id: check
         run: |
           hour=$(TZ=America/New_York date +%H)
-          if [ "${{ github.event_name }}" != "schedule" ] || [ "$hour" = "06" ]; then go=true; else go=false; fi
-          echo "New York hour $hour, run: $go"
+          today=$(TZ=America/New_York date +%F)
+          # Day the live page was built, in New York time (empty if it can't be read).
+          built=$(curl -fsS "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/slides.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(new Date(JSON.parse(s).builtAt).toLocaleDateString("en-CA",{timeZone:"America/New_York"}))}catch{}})' || true)
+          if [ "${{ github.event_name }}" != "schedule" ]; then go=true
+          elif [ "$((10#$hour))" -ge 6 ] && [ "$built" != "$today" ]; then go=true
+          else go=false; fi
+          echo "New York $today hour $hour, live page built $built, run: $go"
           echo "go=$go" >> "$GITHUB_OUTPUT"
 
   # GitHub switches off scheduled workflows in a public repo after 60 days without a commit.
