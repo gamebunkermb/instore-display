@@ -2,12 +2,19 @@ name: Meme of the Week reminder
 
 # Every Friday at noon store time the bot posts config/meme-reminder.md in #meme-bunker:
 # "don't forget to vote". Edit that file on GitHub to change the wording.
+#
+# Two clocks start it (docs/operations.md):
+#   - the store's own timer, which sends a "Run workflow" (workflow_dispatch) with "post"
+#     ticked on Friday at noon, on time;
+#   - GitHub's schedule below, a fallback that often starts 7-12 hours late.
+# Whichever comes first posts; the script skips posting if the bot posted the same reminder
+# in the last 20 hours, so it never goes out twice.
 # Run it by hand from the Actions tab; tick "post" to really post (unticked = dry run).
 
 on:
   # UTC clock, and scheduled runs often start hours late. So it fires several times on Friday;
-  # the "when" step lets through runs that are Friday noon or later in New York, and the
-  # script itself skips posting if the bot already posted the reminder today.
+  # the "when" step lets through runs that start between Friday noon and Saturday 3 AM in
+  # New York (rules and tests: lib/gate.mjs).
   schedule:
     - cron: "0 16 * * 5"
     - cron: "0 17 * * 5"
@@ -20,6 +27,11 @@ on:
         type: boolean
         default: false
 
+# One run at a time: a second run waits, then sees what the first one posted.
+concurrency:
+  group: meme-reminder
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -28,23 +40,40 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - id: when
-        run: |
-          hour=$(TZ=America/New_York date +%H)
-          day=$(TZ=America/New_York date +%u)
-          if [ "${{ github.event_name }}" != "schedule" ] || { [ "$day" = "5" ] && [ "$((10#$hour))" -ge 12 ]; }; then go=true; else go=false; fi
-          echo "New York hour $hour, run: $go"
-          echo "go=$go" >> "$GITHUB_OUTPUT"
-      - if: steps.when.outputs.go == 'true'
-        uses: actions/checkout@v4
-      - if: steps.when.outputs.go == 'true'
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - id: when
+        run: node cli/gate.mjs reminder
+        env:
+          EVENT_NAME: ${{ github.event_name }}
       - if: steps.when.outputs.go == 'true'
         run: npm ci
       - if: steps.when.outputs.go == 'true'
         run: node cli/remind.mjs ${{ (github.event_name == 'schedule' || inputs.post) && '--execute' || '' }}
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+
+  # The job failed: tell staff, if the STAFF_ALERT_WEBHOOK_URL secret is set (a Discord
+  # webhook). The text is fixed wording plus the run link, nothing from Discord.
+  alert:
+    name: Tell staff about a failure
+    needs: remind
+    if: ${{ always() && needs.remind.result == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - env:
+          WEBHOOK: ${{ secrets.STAFF_ALERT_WEBHOOK_URL }}
+          MSG: >-
+            In-store display: the "${{ github.workflow }}" run failed, so the Friday vote reminder
+            may not have been posted in #meme-bunker.
+            <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}>
+        run: |
+          if [ -z "$WEBHOOK" ]; then echo "STAFF_ALERT_WEBHOOK_URL is not set: no alert sent."; exit 0; fi
+          jq -n --arg c "$MSG" '{content: $c, allowed_mentions: {parse: []}}' |
+            curl -fsS --retry 3 --max-time 20 -H "Content-Type: application/json" -d @- "$WEBHOOK" > /dev/null
+          echo "Alert sent."

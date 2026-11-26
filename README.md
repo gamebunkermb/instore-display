@@ -14,9 +14,11 @@ Runs the store's Yodeck screen. Every morning at 6 AM (store time) a GitHub Acti
 The Yodeck screen shows that page as a "Web Page" item (Yodeck's free plan has no API), so
 new content reaches the screen without anyone touching Yodeck.
 
-You can also run it any time from Actions → *Weekly in-store display* → Run workflow.
+You can also run it any time from Actions → *Weekly in-store display* → Run workflow. A run
+you start by hand always rebuilds (**force** is ticked by default).
 
-**Status and what's left to do: [docs/setup.md](docs/setup.md).**
+**Status and what's left to do: [docs/setup.md](docs/setup.md). What runs when, alerts and
+forcing a rebuild: [docs/operations.md](docs/operations.md).**
 
 ## Meme of the Week
 
@@ -34,12 +36,14 @@ You can also run it any time from Actions → *Weekly in-store display* → Run 
 
 | When | Workflow | Does |
 |---|---|---|
-| Daily, 6 AM | Weekly in-store display | Reads Discord, rebuilds and publishes the page; keeps both schedules switched on |
+| Daily, 6 AM | Weekly in-store display | Reads Discord, rebuilds and publishes the page; keeps both schedules switched on; goes red if the live page is over 30 hours old |
 | Fridays, noon | Meme of the Week reminder | Bot posts the vote reminder in #meme-bunker |
 | By hand | Create league events on Discord | Makes a league's weekly events (dry run first) |
 
-Nothing runs on a store computer. The screen re-reads the page every loop and reloads itself
-when a new version is published.
+The store's timer (a small VM) starts both on time; GitHub's own schedule, which starts hours
+late, is the fallback, and neither can build or post twice. A failed run posts to the staff
+alert webhook. Details: [docs/operations.md](docs/operations.md). The screen re-reads the page
+every loop and reloads itself when a new version is published.
 
 ## Tournaments from Best Coast Pairings
 
@@ -107,10 +111,10 @@ in the title or description: `Points: 2000` or `2000 pts`.
 | Path | What |
 |---|---|
 | `config/display.yaml` | Ids, timings, colours. No secrets |
-| `lib/` | `discord`, `yodeck` (API clients), `memes` (approval), `events` (points, slide list), `manage` (create/edit/cancel bodies), `league`, `slide`, `site` (slide order), `video`, `sync` (plan), `time` |
+| `lib/` | `discord`, `yodeck` (API clients), `gate` (when a run builds or posts), `remind` (post once), `memes` (approval), `events` (points, slide list), `manage` (create/edit/cancel bodies), `league`, `slide`, `site` (slide order), `video`, `sync` (plan), `time` |
 | `web/index.html` | The slideshow page the screen shows |
-| `cli/` | `build` (Discord → `out/site/`), `serve` (preview it), `events` (list/create/edit/cancel), `league`, `sync` (Yodeck API, Premium only; unused) |
-| `.github/workflows/weekly-display.yml` | The daily 6 AM run: build, then publish to GitHub Pages |
+| `cli/` | `build` (Discord → `out/site/`), `gate` (used by the workflows), `remind`, `serve` (preview it), `events` (list/create/edit/cancel), `league`, `sync` (Yodeck API, Premium only; unused) |
+| `.github/workflows/weekly-display.yml` | The daily 6 AM run: build, publish to GitHub Pages, check the live page is fresh |
 
 Node ≥ 22, ESM, vitest (`npm test`). Secrets: `.env` locally, repository secrets in GitHub.
 Why this is its own repo and not in store-ops: store-ops `docs/decisions/2026-11-19-instore-display-repo.md`.
