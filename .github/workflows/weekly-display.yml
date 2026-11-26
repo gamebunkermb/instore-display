@@ -3,8 +3,14 @@ name: Weekly in-store display
 # Every morning at 6 AM store time: read approved memes and upcoming events from Discord, rebuild the
 # slideshow page, and publish it to GitHub Pages. The Yodeck screen shows that page (a
 # "Web Page" media item), so nothing in Yodeck changes when the content does.
-# Run it by hand from the Actions tab any time, e.g. right after approving memes or adding
-# events. Untick "publish" to build only and download the result from the run.
+#
+# Two clocks start it (docs/operations.md):
+#   - the store's own timer, which sends a "Run workflow" (workflow_dispatch) at 6 AM, on time;
+#   - GitHub's schedule below, a fallback that often starts 7-12 hours late.
+# Whichever comes first builds; the other finds the page already built today and skips.
+# By hand from the Actions tab: "force" is ticked by default, so a run a person starts always
+# rebuilds (e.g. right after approving memes). The store timer sends force=false, so it skips
+# a page already built today. Untick "publish" to build only and download the result.
 
 on:
   # GitHub's clock is UTC and doesn't know about daylight saving, and scheduled runs often
@@ -22,7 +28,12 @@ on:
         description: "Publish to the screen (untick to build only)"
         type: boolean
         default: true
+      force:
+        description: "Rebuild even if the page was already built today (the store timer sends false)"
+        type: boolean
+        default: true
 
+# One run at a time: a second run waits, then sees what the first one published.
 concurrency:
   group: instore-display
   cancel-in-progress: false
@@ -33,29 +44,31 @@ permissions:
   id-token: write
 
 jobs:
+  # Decides whether this run builds (rules and tests: lib/gate.mjs).
   when:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
     outputs:
       go: ${{ steps.check.outputs.go }}
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - id: check
-        run: |
-          hour=$(TZ=America/New_York date +%H)
-          today=$(TZ=America/New_York date +%F)
-          # Day the live page was built, in New York time (empty if it can't be read).
-          built=$(curl -fsS "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/slides.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(new Date(JSON.parse(s).builtAt).toLocaleDateString("en-CA",{timeZone:"America/New_York"}))}catch{}})' || true)
-          if [ "${{ github.event_name }}" != "schedule" ]; then go=true
-          elif [ "$((10#$hour))" -ge 6 ] && [ "$built" != "$today" ]; then go=true
-          else go=false; fi
-          echo "New York $today hour $hour, live page built $built, run: $go"
-          echo "go=$go" >> "$GITHUB_OUTPUT"
+        run: node cli/gate.mjs build
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          FORCE: ${{ inputs.force }}
+          PUBLISH: ${{ inputs.publish }}
 
   # GitHub switches off scheduled workflows in a public repo after 60 days without a commit.
-  # Re-enabling the scheduled workflows each day keeps them on (needs "actions: write").
+  # Re-enabling them on every run, built or skipped, keeps them on (needs "actions: write").
   keep-alive:
-    needs: when
-    if: needs.when.outputs.go == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       actions: write
     steps:
@@ -101,9 +114,52 @@ jobs:
     needs: build
     if: github.event_name == 'schedule' || inputs.publish
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - id: deploy
         uses: actions/deploy-pages@v4
+
+  # Runs on every run, built or skipped: the run goes red when the page the screen is showing
+  # is more than 30 hours old, so a skipped build can't pass for a good day.
+  fresh:
+    name: Live page is fresh
+    needs: [when, build, publish]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node cli/gate.mjs fresh
+
+  # Any job failed: tell staff, if the STAFF_ALERT_WEBHOOK_URL secret is set (a Discord
+  # webhook). The text is fixed wording plus job results and the run link, nothing from Discord.
+  alert:
+    name: Tell staff about a failure
+    needs: [when, keep-alive, build, publish, fresh]
+    if: ${{ always() && contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - env:
+          WEBHOOK: ${{ secrets.STAFF_ALERT_WEBHOOK_URL }}
+          MSG: >-
+            In-store display: the "${{ github.workflow }}" run failed, so the shop screen may be
+            showing old slides.
+            Check: ${{ needs.when.result }}, keep schedules on: ${{ needs.keep-alive.result }},
+            build: ${{ needs.build.result }}, publish: ${{ needs.publish.result }},
+            live page fresh: ${{ needs.fresh.result }}.
+            <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}>
+        run: |
+          if [ -z "$WEBHOOK" ]; then echo "STAFF_ALERT_WEBHOOK_URL is not set: no alert sent."; exit 0; fi
+          jq -n --arg c "$MSG" '{content: $c, allowed_mentions: {parse: []}}' |
+            curl -fsS --retry 3 --max-time 20 -H "Content-Type: application/json" -d @- "$WEBHOOK" > /dev/null
+          echo "Alert sent."
